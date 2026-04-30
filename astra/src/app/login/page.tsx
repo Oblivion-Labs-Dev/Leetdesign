@@ -206,14 +206,14 @@ function LoginPageInner() {
                     label="First name"
                     value={firstName}
                     onChange={setFirstName}
-                    placeholder="Sumeet"
+                    placeholder="First name"
                     required
                   />
                   <Field
                     label="Last name"
                     value={lastName}
                     onChange={setLastName}
-                    placeholder="Suryawanshi"
+                    placeholder="Last name"
                     required
                   />
                 </div>
