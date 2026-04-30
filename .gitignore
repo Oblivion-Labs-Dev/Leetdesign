@@ -1,0 +1,12 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Astra app handles its own .gitignore inside ./astra
+
+# Local design artifacts (do not publish)
+docs/
