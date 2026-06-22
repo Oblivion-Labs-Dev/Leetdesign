@@ -30,9 +30,9 @@ export default function Landing() {
             Progression
           </a>
         </nav>
-        <Link href="/login">
+        <Link href="/dashboard">
           <Button variant="outline" size="sm">
-            Sign in
+            Open app
           </Button>
         </Link>
       </header>
@@ -53,15 +53,15 @@ export default function Landing() {
           CI/CD.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/login?mode=signup">
+          <Link href="/dashboard">
             <Button size="lg">
-              Create account
+              Get started
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Link href="/login">
+          <Link href="/projects">
             <Button size="lg" variant="outline">
-              Sign in
+              Browse projects
             </Button>
           </Link>
         </div>

@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { BRAND } from "@/lib/brand";
 import { getCurrentUserProfile } from "@/lib/auth-guard";
-import { requireBackendUser } from "@/lib/backend-auth";
+import { isOnboardingComplete } from "@/lib/local-store";
 import { redirect } from "next/navigation";
 
 export default async function OnboardingPage() {
-  const { user } = await requireBackendUser();
-  if (user.firstVisitCompleted) {
+  if (await isOnboardingComplete()) {
     redirect("/dashboard");
   }
   const profile = await getCurrentUserProfile();

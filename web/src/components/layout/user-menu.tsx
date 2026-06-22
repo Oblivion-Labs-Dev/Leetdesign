@@ -3,10 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ChevronDown,
-  LogOut,
   Settings,
   Shield,
   User as UserIcon,
@@ -24,7 +22,6 @@ export interface UserMenuUser {
 export function UserMenu({ user }: { user: UserMenuUser }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -36,16 +33,6 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
       return () => document.removeEventListener("mousedown", handler);
     }
   }, [open]);
-
-  async function signOut() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // ignore
-    }
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <div className="relative" ref={ref}>
@@ -128,15 +115,6 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
             <span>Theme</span>
             <ThemeToggle size="sm" />
           </div>
-
-          <button
-            type="button"
-            onClick={signOut}
-            className="flex w-full items-center gap-2 border-t border-[var(--border)] px-4 py-2.5 text-left text-sm text-rose-300 hover:bg-rose-500/10"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
         </div>
       ) : null}
     </div>

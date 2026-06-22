@@ -1,26 +1,16 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-
-const BACKEND_URL =
-  process.env.BACKEND_INTERNAL_URL ??
-  process.env.NEXT_PUBLIC_BACKEND_URL ??
-  "http://localhost:4000";
+import { markComponentSeen } from "@/lib/local-store";
 
 export async function POST(req: Request) {
-  const token = (await cookies()).get("leetdesign_token")?.value;
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await req.json();
-  const res = await fetch(`${BACKEND_URL}/api/users/me/components/seen`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    return NextResponse.json({ error: "Failed" }, { status: res.status });
+  const componentId = String(body.componentId ?? "").trim();
+  const projectId = String(body.projectId ?? "").trim();
+  if (!componentId || !projectId) {
+    return NextResponse.json(
+      { error: "componentId and projectId required" },
+      { status: 400 },
+    );
   }
-  return NextResponse.json(await res.json());
+  const item = await markComponentSeen({ componentId, projectId });
+  return NextResponse.json({ ok: true, item });
 }

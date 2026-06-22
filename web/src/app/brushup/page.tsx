@@ -2,7 +2,6 @@ import { AppShell } from "@/components/layout/app-shell";
 import { SectionHeader } from "@/components/ui/section";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
-import { requireAuth } from "@/lib/auth-guard";
 
 const TRACKS = [
   {
@@ -28,7 +27,6 @@ const TRACKS = [
 ];
 
 export default async function BrushupPage() {
-  await requireAuth();
   return (
     <AppShell title="Brush-up" subtitle="Short, focused warm-ups before the deep work.">
       <SectionHeader

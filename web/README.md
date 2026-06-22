@@ -16,34 +16,23 @@ The Leetdesign web app — a simulation-first system design platform.
 
 ```bash
 npm install
-npx prisma generate
-npx prisma db push
-npm run dev
+npm run dev -- --port 3333
 ```
 
-App runs on `http://localhost:3000`.
+App runs on `http://localhost:3333`.
 
-## Auth setup (required for real login/signup)
+## Local profile & progress
 
-Copy `.env.example` to `.env` and set:
-
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL` (usually `http://localhost:3000`)
-- optional OAuth providers:
-  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-  - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
-
-Credentials signup/login works without OAuth keys. Google/GitHub buttons become
-fully active once their keys are configured.
+There is no login or external backend. A default local profile and your progress
+are persisted in `.data/user-state.json` under this directory.
 
 ## Routes
 
 | Route                          | Purpose                                            |
 | ------------------------------ | -------------------------------------------------- |
 | `/`                            | Marketing / landing page                           |
-| `/login`                       | Sign-in shell                                      |
-| `/onboarding`                  | "You're hired" first-day flow                      |
-| `/dashboard`                   | Company-style dashboard with badge & active work   |
+| `/onboarding`                  | First-day intro flow                               |
+| `/dashboard`                   | Dashboard with badge & active work                 |
 | `/projects`                    | Catalog of guided projects, gated by badge         |
 | `/projects/[projectId]`        | Guided incident workspace (pipeline + bot + CI)    |
 | `/practice`                    | Catalog of practice exercises                      |

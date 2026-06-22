@@ -7,11 +7,8 @@ import { SectionHeader } from "@/components/ui/section";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { BRAND } from "@/lib/brand";
-import { requireAuth } from "@/lib/auth-guard";
 
 export default async function PracticeIndexPage() {
-  await requireAuth();
-
   const linked = PRACTICE_EXERCISES.filter((p) => p.projectId);
   const standalone = PRACTICE_EXERCISES.filter((p) => !p.projectId);
   const projectMap = new Map(PROJECTS.map((p) => [p.id, p.shortTitle]));

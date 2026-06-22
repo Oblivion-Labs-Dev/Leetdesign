@@ -8,7 +8,7 @@ import { getScenario } from "@/lib/content/scenarios";
 import { getPracticeForProject } from "@/lib/content/practice";
 import { ProjectWorkspace } from "@/components/workspace/project-workspace";
 import { JourneyWorkspace } from "@/components/workspace/journey-workspace";
-import { backendFetch } from "@/lib/backend-fetch";
+import { getProjectProgress } from "@/lib/local-store";
 import { BRAND } from "@/lib/brand";
 
 export default async function ProjectPage({
@@ -24,10 +24,8 @@ export default async function ProjectPage({
   const relatedPractice = getPracticeForProject(projectId);
 
   if (journey) {
-    const progress = await backendFetch<{
-      item?: { stageIndex: number; status: string };
-    }>(`/api/users/me/progress/${encodeURIComponent(projectId)}`);
-    const initialStageIndex = progress?.item?.stageIndex ?? 0;
+    const progress = await getProjectProgress(projectId);
+    const initialStageIndex = progress?.stageIndex ?? 0;
     return (
       <AppShell
         title={project.title}

@@ -27,7 +27,7 @@ maps to the master design doc (`docs/MASTER_DESIGN_DOC.md`).
 |  lib/content/practice.ts    ─ free-build prompts          |
 +-----------------------------------------------------------+
 |                  Identity & Brand Layer                   |
-|  lib/brand.ts   lib/badges.ts   lib/session.ts            |
+|  lib/brand.ts   lib/badges.ts   lib/local-store.ts        |
 +-----------------------------------------------------------+
 ```
 
@@ -127,6 +127,6 @@ This isolates content + UX work from prompt engineering and inference cost.
   exercise, deterministic simulation, simulated delivery flow, AI judge
   interface with local fallback. ✅
 - **Next**: more scenarios, taskboard interactions, code-snippet tasks
-  inside guided projects, progression persistence, real auth provider.
+  inside guided projects, progression persistence, optional cloud sync later.
 - **Later**: real AI judge integration, marketplace/free vs paid projects,
   multi-user collaboration, replay logs.

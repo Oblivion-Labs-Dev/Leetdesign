@@ -1,26 +1,21 @@
-import { redirect } from "next/navigation";
 import type { UserProfile } from "@/types";
 import {
-  fetchCurrentUserRaw,
-  getAuthToken,
-  getCurrentUserProfile as getProfileFromBackend,
-  requireBackendUser,
-} from "@/lib/backend-auth";
-
-export async function requireAuth() {
-  return requireBackendUser();
-}
-
-export async function resolvePostLoginRedirect(): Promise<string> {
-  const token = await getAuthToken();
-  if (!token) return "/login";
-  const user = await fetchCurrentUserRaw(token);
-  if (!user || !user.firstVisitCompleted) return "/onboarding";
-  return "/dashboard";
-}
+  completeOnboarding,
+  getProfile,
+  isOnboardingComplete,
+} from "@/lib/local-store";
 
 export async function getCurrentUserProfile(): Promise<UserProfile> {
-  const profile = await getProfileFromBackend();
-  if (!profile) redirect("/login");
-  return profile;
+  return getProfile();
 }
+
+export async function requireAuth(): Promise<UserProfile> {
+  return getCurrentUserProfile();
+}
+
+export async function resolveAppEntryRedirect(): Promise<string> {
+  const done = await isOnboardingComplete();
+  return done ? "/dashboard" : "/onboarding";
+}
+
+export { completeOnboarding, isOnboardingComplete };

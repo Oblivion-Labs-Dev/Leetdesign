@@ -1,7 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { SectionHeader } from "@/components/ui/section";
 import { TaskboardClient, type TaskboardTask } from "@/components/taskboard/taskboard-client";
-import { requireAuth } from "@/lib/auth-guard";
 
 const TASKS: TaskboardTask[] = [
   {
@@ -67,7 +66,6 @@ const TASKS: TaskboardTask[] = [
 ];
 
 export default async function TasksPage() {
-  await requireAuth();
   return (
     <AppShell
       title="Taskboard"

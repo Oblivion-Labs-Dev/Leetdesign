@@ -14,3 +14,4 @@ docs/
 # Local SQLite databases (never commit personal/test data)
 **/prisma/*.db
 **/prisma/*.db-journal
+astra/

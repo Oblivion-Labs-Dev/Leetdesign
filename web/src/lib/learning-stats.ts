@@ -1,6 +1,11 @@
 import { ALL_COMPONENTS } from "@/lib/content/components";
 import { PROJECTS } from "@/lib/content/projects";
-import { backendFetch } from "@/lib/backend-fetch";
+import {
+  getComponentsSeen,
+  getProjectProgressList,
+  getVisitDays,
+  trackVisit,
+} from "@/lib/local-store";
 
 export interface ComponentSeenStat {
   componentId: string;
@@ -18,7 +23,7 @@ export interface ProjectProgressStat {
 }
 
 export interface VisitDayStat {
-  day: string; // YYYY-MM-DD UTC
+  day: string;
   count: number;
 }
 
@@ -28,29 +33,9 @@ export interface LearningStats {
   activeProjects: ProjectProgressStat[];
   completedProjects: ProjectProgressStat[];
   visits: VisitDayStat[];
-  /** Current consecutive-day streak ending today. */
   currentStreak: number;
-  /** Longest consecutive-day streak ever. */
   longestStreak: number;
 }
-
-type RawComponentSeen = {
-  componentId: string;
-  projectId: string;
-  seenAt: string;
-};
-
-type RawProjectProgress = {
-  projectId: string;
-  stageIndex: number;
-  status: string;
-  updatedAt: string;
-};
-
-type RawVisitDay = {
-  day: string;
-  count: number;
-};
 
 function calcStreaks(visits: VisitDayStat[]): {
   current: number;
@@ -58,7 +43,6 @@ function calcStreaks(visits: VisitDayStat[]): {
 } {
   if (visits.length === 0) return { current: 0, longest: 0 };
   const days = new Set(visits.map((v) => v.day));
-  // Longest
   let longest = 0;
   let runStart: Date | null = null;
   let prev: Date | null = null;
@@ -71,12 +55,12 @@ function calcStreaks(visits: VisitDayStat[]): {
       runStart = d;
     }
     if (runStart) {
-      const len = (d.getTime() - runStart.getTime()) / (24 * 60 * 60 * 1000) + 1;
+      const len =
+        (d.getTime() - runStart.getTime()) / (24 * 60 * 60 * 1000) + 1;
       if (len > longest) longest = len;
     }
     prev = d;
   }
-  // Current streak: walk back from today.
   let current = 0;
   const today = new Date();
   for (let i = 0; i < 1000; i++) {
@@ -90,15 +74,13 @@ function calcStreaks(visits: VisitDayStat[]): {
 }
 
 export async function getCurrentUserLearningStats(): Promise<LearningStats> {
-  const [seenRes, progressRes, visitsRes] = await Promise.all([
-    backendFetch<{ items: RawComponentSeen[] }>("/api/users/me/components"),
-    backendFetch<{ items: RawProjectProgress[] }>("/api/users/me/progress"),
-    backendFetch<{ items: RawVisitDay[] }>("/api/users/me/visits?days=120"),
-  ]);
+  await trackVisit();
 
-  const seen: RawComponentSeen[] = seenRes?.items ?? [];
-  const progress: RawProjectProgress[] = progressRes?.items ?? [];
-  const visitsRaw: RawVisitDay[] = visitsRes?.items ?? [];
+  const [seen, progress, visitsRaw] = await Promise.all([
+    getComponentsSeen(),
+    getProjectProgressList(),
+    getVisitDays(120),
+  ]);
 
   const componentsSeen: ComponentSeenStat[] = seen.map((row) => ({
     componentId: row.componentId,
@@ -114,13 +96,14 @@ export async function getCurrentUserLearningStats(): Promise<LearningStats> {
     projectId: row.projectId,
     title: projectMap.get(row.projectId)?.shortTitle ?? row.projectId,
     stageIndex: row.stageIndex,
-    status: row.status === "completed" ? "completed" : "in_progress",
+    status: row.status,
     updatedAt: row.updatedAt,
   }));
 
-  const visits: VisitDayStat[] = visitsRaw
-    .map((v) => ({ day: v.day, count: v.count }))
-    .sort((a, b) => (a.day < b.day ? -1 : 1));
+  const visits: VisitDayStat[] = visitsRaw.map((v) => ({
+    day: v.day,
+    count: v.count,
+  }));
   const streaks = calcStreaks(visits);
 
   return {
