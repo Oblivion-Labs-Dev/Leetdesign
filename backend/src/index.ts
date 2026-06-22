@@ -482,5 +482,5 @@ app.post("/api/users/me/progress/:projectId", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Astra backend running on http://localhost:${PORT}`);
+  console.log(`Leetdesign backend running on http://localhost:${PORT}`);
 });

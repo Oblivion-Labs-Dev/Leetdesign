@@ -6,7 +6,7 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Astra app handles its own .gitignore inside ./astra
+# Web app handles its own .gitignore inside ./web
 
 # Local design artifacts (do not publish)
 docs/

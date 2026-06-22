@@ -22,7 +22,7 @@ function aliasSeedFromName(firstName, lastName) {
     return normalizeAlias(`${first}${last}` || "engineer");
 }
 function makeWorkEmail(alias) {
-    return `${alias}@astra.oblivionlabs.com`;
+    return `${alias}@leetdesign.com`;
 }
 function makeAvatarUrl(seed) {
     return `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(seed.toLowerCase())}`;
