@@ -18,7 +18,7 @@ export function aliasSeedFromName(firstName: string, lastName: string): string {
 }
 
 export function makeWorkEmail(alias: string): string {
-  return `${alias}@astra.oblivionlabs.com`;
+  return `${alias}@leetdesign.com`;
 }
 
 export function makeAvatarUrl(seed: string): string {

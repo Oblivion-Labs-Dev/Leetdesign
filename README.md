@@ -1,14 +1,12 @@
-# Astra
+# Leetdesign
 
 > Learn system design by working at a company that lives in your browser.
 
-**Astra** is a simulation-first system design platform. Users are "hired" into a
+**Leetdesign** is a simulation-first system design platform. Users are "hired" into a
 simulated engineering organization, get a role badge, take real-feeling
 incidents, fix architecture by drag-and-drop, and ship through a simulated
 git/CI/CD pipeline. Practice mode lets users design full systems from scratch
 and submit them to an AI-graded VP review meeting.
-
-Astra is a child product under the parent brand **OblivionLabs**.
 
 ---
 
@@ -16,7 +14,7 @@ Astra is a child product under the parent brand **OblivionLabs**.
 
 ```
 leetdesign/
-├── astra/                     # Next.js frontend application
+├── web/                       # Next.js frontend application
 ├── backend/                   # Dedicated backend auth/identity service
 │   ├── src/
 │   │   ├── app/               # App Router pages
@@ -32,7 +30,7 @@ leetdesign/
 ## Quick start
 
 ```bash
-cd astra
+cd web
 npm install
 npm run dev
 ```
@@ -54,7 +52,7 @@ npm run dev
 In another terminal:
 
 ```bash
-cd astra
+cd web
 npm install
 npm run dev -- --port 3333
 ```
@@ -70,7 +68,7 @@ Recommended first walkthrough:
 
 ## Scripts
 
-From inside `astra/`:
+From inside `web/`:
 
 - `npm run dev` — start dev server
 - `npm run build` — production build
@@ -82,9 +80,9 @@ From inside `astra/`:
 - [docs/MASTER_DESIGN_DOC.md](docs/MASTER_DESIGN_DOC.md) — the canonical product +
   architecture spec. Treat this as the single source of truth.
 - [docs/MyRawIdea.md](docs/MyRawIdea.md) — the original brain dump.
-- [astra/ARCHITECTURE.md](astra/ARCHITECTURE.md) — code architecture and how to
-  extend Astra (add a new component, scenario, project, or judge).
+- [web/ARCHITECTURE.md](web/ARCHITECTURE.md) — code architecture and how to
+  extend Leetdesign (add a new component, scenario, project, or judge).
 
 ## License
 
-Proprietary — OblivionLabs.
+Proprietary.

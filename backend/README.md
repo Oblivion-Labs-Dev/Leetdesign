@@ -1,6 +1,6 @@
-# Astra Backend
+# Leetdesign Backend
 
-Dedicated backend service for Astra authentication and user identity.
+Dedicated backend service for Leetdesign authentication and user identity.
 
 ## Responsibilities
 
