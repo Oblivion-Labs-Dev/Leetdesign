@@ -1,155 +1,98 @@
-import Link from "next/link";
-import {
-  ArrowRight,
-  Bot,
-  GitBranch,
-  Network,
-  ShieldCheck,
-  Sparkles,
-  Workflow,
-  Zap,
-} from "lucide-react";
-import { LeetdesignLogo } from "@/components/layout/logo";
-import { Button } from "@/components/ui/button";
-import { Pill } from "@/components/ui/pill";
-import { BRAND } from "@/lib/brand";
+import { ArrowRight, Code2, Layers, Sparkles } from "lucide-react";
+import { ClayButton } from "@/components/landing/clay-button";
+import { HeroShowcase } from "@/components/landing/hero/hero-showcase";
+import { LandingFooter } from "@/components/landing/landing-footer";
+import { LandingHeader } from "@/components/landing/landing-header";
+import { LearnTopics } from "@/components/landing/learn-topics";
+import { ProductWalkthrough } from "@/components/landing/product-walkthrough";
 
-export default function Landing() {
+const HERO_STATS = [
+  { icon: Layers, label: "Tactile studio", value: "Sketch & connect" },
+  { icon: Code2, label: "Developer-first", value: "APIs & data flows" },
+  { icon: Sparkles, label: "Zero friction", value: "Open & start" },
+];
+
+export default function LandingPage() {
   return (
-    <div className="relative z-10 min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <LeetdesignLogo />
-        <nav className="hidden items-center gap-7 text-sm text-[var(--foreground-muted)] md:flex">
-          <a href="#how" className="hover:text-[var(--foreground)]">
-            How it works
-          </a>
-          <a href="#what" className="hover:text-[var(--foreground)]">
-            What you build
-          </a>
-          <a href="#progress" className="hover:text-[var(--foreground)]">
-            Progression
-          </a>
-        </nav>
-        <Link href="/dashboard">
-          <Button variant="outline" size="sm">
-            Open app
-          </Button>
-        </Link>
-      </header>
+    <div className="clay-landing relative min-h-screen overflow-x-hidden">
+      <LandingHeader />
 
-      <section className="mx-auto max-w-6xl px-6 pt-12 pb-20 text-center">
-        <Pill tone="brand" className="mx-auto mb-5">
-          <Sparkles className="h-3 w-3" /> {BRAND.lockup}
-        </Pill>
-        <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight sm:text-6xl">
-          Learn system design by{" "}
-          <span className="brand-gradient-text">working at a company</span>
-          <br />
-          that lives in your browser.
-        </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-base text-[var(--foreground-muted)] sm:text-lg">
-          Learn like you are embedded on a platform team—badge progression,
-          incidents, and a pipeline you drag, fix, and ship through simulated
-          CI/CD.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/dashboard">
-            <Button size="lg">
-              Get started
+      <main>
+        <section className="mx-auto w-full max-w-[88rem] px-5 pb-16 pt-6 sm:px-8 lg:px-12 lg:pb-20 lg:pt-10">
+          <div className="grid items-center gap-10 xl:grid-cols-[0.92fr_1.28fr] xl:gap-12">
+            <div className="max-w-xl xl:max-w-2xl">
+              <p className="clay-pill mb-5">System design, hands-on</p>
+              <h1 className="clay-display text-4xl font-bold leading-[1.06] tracking-tight text-[var(--clay-text)] sm:text-5xl xl:text-[3.4rem]">
+                The studio where
+                <br />
+                <span className="clay-gradient-text">system design clicks</span>
+              </h1>
+              <p className="mt-5 text-base leading-relaxed text-[var(--clay-text-muted)] sm:text-lg">
+                Compose services, wire data flows, and watch your pipeline run —
+                the hands-on way to build architectural thinking as a developer.
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <ClayButton href="/dashboard">
+                  Start learning
+                  <ArrowRight className="h-4 w-4" />
+                </ClayButton>
+                <ClayButton href="#how-it-works" variant="secondary">
+                  See how it works
+                </ClayButton>
+              </div>
+
+              <ul className="mt-10 grid gap-3 sm:grid-cols-3">
+                {HERO_STATS.map((stat) => (
+                  <li
+                    key={stat.label}
+                    className="clay-card-inset flex items-center gap-3 px-4 py-3"
+                  >
+                    <stat.icon className="h-4 w-4 shrink-0 text-[var(--clay-primary)]" />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
+                        {stat.label}
+                      </p>
+                      <p className="text-xs font-semibold text-[var(--clay-text)]">
+                        {stat.value}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="relative w-full min-w-0">
+              <HeroShowcase />
+            </div>
+          </div>
+        </section>
+
+        <ProductWalkthrough />
+        <LearnTopics />
+
+        <section className="mx-auto w-full max-w-[88rem] px-5 py-20 sm:px-8 lg:px-12">
+          <div className="clay-card relative overflow-hidden px-8 py-12 lg:grid lg:grid-cols-[1fr_auto] lg:items-center lg:gap-10 lg:px-12 lg:py-14">
+            <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[var(--clay-primary)]/10 blur-3xl" />
+            <div>
+              <h2 className="clay-display text-2xl font-bold text-[var(--clay-text)] sm:text-3xl lg:text-4xl">
+                Ready to think like a
+                <br />
+                system-minded developer?
+              </h2>
+              <p className="mt-3 max-w-xl text-[var(--clay-text-muted)]">
+                Open the studio in your browser — no account, no install.
+              </p>
+            </div>
+            <ClayButton href="/dashboard" className="mt-8 shrink-0 lg:mt-0">
+              Open your studio
               <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Link href="/projects">
-            <Button size="lg" variant="outline">
-              Browse projects
-            </Button>
-          </Link>
-        </div>
+            </ClayButton>
+          </div>
+        </section>
+      </main>
 
-        <div className="mx-auto mt-14 grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-3">
-          <FeatureChip
-            icon={Workflow}
-            title="Live pipeline"
-            text="Drag components into missing slots and watch the system stabilize."
-          />
-          <FeatureChip
-            icon={GitBranch}
-            title="Real delivery flow"
-            text="Branches, CI checks, conflicts, and merges to main."
-          />
-          <FeatureChip
-            icon={Bot}
-            title="On-call bot"
-            text="Guide narrates incidents and reacts to your fix in real time."
-          />
-        </div>
-      </section>
-
-      <section id="how" className="mx-auto max-w-6xl px-6 pb-24">
-        <div className="grid gap-4 md:grid-cols-3">
-          <FeatureCard
-            icon={ShieldCheck}
-            title="Badge-led progression"
-            text="Start as an Leetdesign Intern. Earn XP from incidents and reviews to climb to Software Engineer I, II, Senior, and Principal."
-          />
-          <FeatureCard
-            icon={Zap}
-            title="Guided incidents"
-            text="Tutorials hand you a half-built system. Drop the right components in, and connections auto-wire."
-          />
-          <FeatureCard
-            icon={Network}
-            title="Free-build practice"
-            text="Practice prompts let you build the full architecture, then submit it to a VP review meeting for AI grading."
-          />
-        </div>
-      </section>
-
-      <footer className="mx-auto max-w-6xl px-6 pb-12 text-center text-xs text-[var(--foreground-subtle)]">
-        Leetdesign · v0.1.0
-      </footer>
-    </div>
-  );
-}
-
-function FeatureChip({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="surface flex items-start gap-3 px-4 py-4 text-left">
-      <div className="grid h-9 w-9 place-items-center rounded-lg bg-violet-500/10 text-violet-300">
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <div className="text-sm font-semibold">{title}</div>
-        <div className="text-xs text-[var(--foreground-muted)]">{text}</div>
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({
-  icon: Icon,
-  title,
-  text,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  text: string;
-}) {
-  return (
-    <div className="surface p-6">
-      <div className="mb-3 grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 text-violet-200">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="text-base font-semibold">{title}</div>
-      <p className="mt-1 text-sm text-[var(--foreground-muted)]">{text}</p>
+      <LandingFooter />
     </div>
   );
 }

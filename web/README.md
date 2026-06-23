@@ -24,7 +24,7 @@ App runs on `http://localhost:3333`.
 ## Local profile & progress
 
 There is no login or external backend. A default local profile and your progress
-are persisted in `.data/user-state.json` under this directory.
+are persisted in `~/.leetdesign/user-state.json`.
 
 ## Routes
 

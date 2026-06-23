@@ -97,11 +97,13 @@ export function DashboardTourOverlay({ enabled }: { enabled: boolean }) {
     };
   }, [open]);
 
-  // Resolve target on every step change / resize.
+  // Measure spotlight geometry when the step changes or the window resizes.
   useEffect(() => {
     if (!open) return;
     let raf = 0;
-    const update = () => {
+    let scrolled = false;
+
+    const measure = () => {
       const el = document.querySelector(
         step.selector,
       ) as HTMLElement | null;
@@ -109,22 +111,21 @@ export function DashboardTourOverlay({ enabled }: { enabled: boolean }) {
         setGeom(null);
         return;
       }
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
-      // Give layout a beat to settle before measuring.
+      if (!scrolled) {
+        scrolled = true;
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
       raf = window.requestAnimationFrame(() => {
         const r = el.getBoundingClientRect();
-        const cardPos = pickCardPosition(r);
-        setGeom({ rect: r, cardPos });
+        setGeom({ rect: r, cardPos: pickCardPosition(r) });
       });
     };
-    update();
-    const onResize = () => update();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onResize, true);
+
+    measure();
+    window.addEventListener("resize", measure);
     return () => {
       window.cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onResize, true);
+      window.removeEventListener("resize", measure);
     };
   }, [open, step.selector]);
 
@@ -139,7 +140,9 @@ export function DashboardTourOverlay({ enabled }: { enabled: boolean }) {
       // best effort — tour shouldn't block the user.
     }
     setOpen(false);
-    router.replace("/dashboard");
+    if (window.location.search.includes("tour=1")) {
+      router.replace("/dashboard");
+    }
   }
 
   return (

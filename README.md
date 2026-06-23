@@ -47,7 +47,7 @@ From inside `web/`:
 
 ## Local data
 
-Progress, profile edits, and onboarding state are stored in `web/.data/user-state.json`
+Progress, profile edits, and onboarding state are stored in `~/.leetdesign/user-state.json`
 on your machine. No account or backend service is required.
 
 ## Documentation

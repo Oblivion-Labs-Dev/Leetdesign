@@ -4,7 +4,6 @@ import {
   getComponentsSeen,
   getProjectProgressList,
   getVisitDays,
-  trackVisit,
 } from "@/lib/local-store";
 
 export interface ComponentSeenStat {
@@ -74,8 +73,6 @@ function calcStreaks(visits: VisitDayStat[]): {
 }
 
 export async function getCurrentUserLearningStats(): Promise<LearningStats> {
-  await trackVisit();
-
   const [seen, progress, visitsRaw] = await Promise.all([
     getComponentsSeen(),
     getProjectProgressList(),

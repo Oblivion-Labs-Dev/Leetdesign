@@ -1,4 +1,5 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import type { UserProfile } from "@/types";
 import { BRAND } from "@/lib/brand";
@@ -30,8 +31,12 @@ type UserState = {
   visitDays: VisitDayRow[];
 };
 
-const DATA_DIR = path.join(process.cwd(), ".data");
+/** Outside the Next.js project tree so dev file-watching does not reload on every write. */
+const DATA_DIR =
+  process.env.LEETDESIGN_DATA_DIR ?? path.join(os.homedir(), ".leetdesign");
 const STATE_FILE = path.join(DATA_DIR, "user-state.json");
+
+let memoryState: UserState | null = null;
 
 function defaultState(): UserState {
   const alias = "builder";
@@ -61,15 +66,18 @@ function defaultState(): UserState {
 }
 
 async function readState(): Promise<UserState> {
+  if (memoryState) return memoryState;
   try {
     const raw = await fs.readFile(STATE_FILE, "utf8");
-    return { ...defaultState(), ...JSON.parse(raw) } as UserState;
+    memoryState = { ...defaultState(), ...JSON.parse(raw) } as UserState;
   } catch {
-    return defaultState();
+    memoryState = defaultState();
   }
+  return memoryState;
 }
 
 async function writeState(state: UserState): Promise<void> {
+  memoryState = state;
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), "utf8");
 }
@@ -140,6 +148,7 @@ export async function markComponentSeen(input: {
     (r) => r.componentId === input.componentId,
   );
   if (existing) {
+    if (existing.projectId === input.projectId) return existing;
     existing.projectId = input.projectId;
     await writeState(state);
     return existing;
@@ -193,8 +202,8 @@ export async function trackVisit(): Promise<void> {
   const day = new Date().toISOString().slice(0, 10);
   const state = await readState();
   const row = state.visitDays.find((v) => v.day === day);
-  if (row) row.count += 1;
-  else state.visitDays.push({ day, count: 1 });
+  if (row) return;
+  state.visitDays.push({ day, count: 1 });
   await writeState(state);
 }
 
