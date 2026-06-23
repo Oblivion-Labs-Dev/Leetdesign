@@ -20,29 +20,59 @@ leetdesign/
 
 ## Quick start
 
+### Prerequisites
+
+- Node.js 20+ (LTS recommended)
+- npm 10+
+
+### First-time setup
+
 ```bash
 cd web
 npm install
+```
+
+### Start the application (development)
+
+```bash
+cd web
 npm run dev -- --port 3333
 ```
 
-Then open `http://localhost:3333`.
+Open **http://localhost:3333** in your browser.
 
-Recommended first walkthrough:
+The dev server runs on port `3333` by default for this project. To use a different port:
+
+```bash
+npm run dev -- --port 3000
+```
+
+### Start the application (production)
+
+```bash
+cd web
+npm run build
+npm run start -- --port 3333
+```
+
+Then open **http://localhost:3333**.
+
+### Recommended first walkthrough
 
 1. Visit `/` → click **Get started**.
-2. `/onboarding` → enter the dashboard tour.
-3. `/projects/url-shortener` → work through the guided journey.
-4. `/practice/url-shortener-global` → free-build a system and submit it to the
+2. `/onboarding` → enter the Studio tour.
+3. `/dashboard` → your Studio home (stats, continue card, streaks).
+4. `/projects/url-shortener` → work through the guided journey.
+5. `/practice/url-shortener-global` → free-build a system and submit it to the
    VP review meeting.
 
 ## Scripts
 
 From inside `web/`:
 
-- `npm run dev` — start dev server
+- `npm run dev` — start development server (add `-- --port 3333` to set port)
 - `npm run build` — production build
-- `npm run start` — serve production build
+- `npm run start` — serve production build (add `-- --port 3333` to set port)
 - `npm run lint` — lint with Next/ESLint
 
 ## Local data

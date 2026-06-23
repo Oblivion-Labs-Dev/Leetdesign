@@ -1,0 +1,28 @@
+---
+description: Never attribute Cursor or any AI in git commits
+alwaysApply: true
+---
+
+# No AI attribution in git commits
+
+**Absolute rule.** Never include Cursor, any AI assistant, or automated tooling in git commit metadata or messages.
+
+## Forbidden in every commit
+
+- `Co-authored-by: Cursor <cursoragent@cursor.com>`
+- `Co-authored-by:` lines for any AI or bot
+- Mentions of Cursor, Copilot, ChatGPT, Claude, or "AI-assisted" in commit subject/body
+- Trailer lines like `Assisted-by:` or `Generated-by:` referencing tooling
+
+## Required
+
+- Commits must appear solely as human-authored work by the repository owner
+- Write commit messages in normal project voice — describe the change only
+- Before pushing, verify: `git log -1 --format=%B` contains no AI attribution
+
+## Before every push
+
+1. Run: `git log --format="%B" | rg "^Co-authored-by"` — output must be empty.
+2. If any trailer appears, strip it before pushing:
+   `git filter-branch -f --msg-filter 'sed "/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d"' <range>`
+3. Never push until attribution is verified clean.

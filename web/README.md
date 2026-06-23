@@ -14,12 +14,31 @@ The Leetdesign web app — a simulation-first system design platform.
 
 ## Local development
 
+### Prerequisites
+
+- Node.js 20+ (LTS recommended)
+- npm 10+
+
+### Install dependencies
+
 ```bash
 npm install
+```
+
+### Start the application
+
+```bash
 npm run dev -- --port 3333
 ```
 
-App runs on `http://localhost:3333`.
+App runs at **http://localhost:3333**.
+
+### Production build
+
+```bash
+npm run build
+npm run start -- --port 3333
+```
 
 ## Local profile & progress
 
@@ -32,7 +51,7 @@ are persisted in `~/.leetdesign/user-state.json`.
 | ------------------------------ | -------------------------------------------------- |
 | `/`                            | Marketing / landing page                           |
 | `/onboarding`                  | First-day intro flow                               |
-| `/dashboard`                   | Dashboard with badge & active work                 |
+| `/dashboard`                   | Studio home — stats, continue card, streaks        |
 | `/projects`                    | Catalog of guided projects, gated by badge         |
 | `/projects/[projectId]`        | Guided incident workspace (pipeline + bot + CI)    |
 | `/practice`                    | Catalog of practice exercises                      |
