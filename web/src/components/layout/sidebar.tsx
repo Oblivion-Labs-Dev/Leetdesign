@@ -17,7 +17,7 @@ const SECTIONS = [
   {
     label: "Workspace",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Studio", icon: LayoutDashboard },
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/practice", label: "Practice", icon: Sparkles },
       { href: "/tasks", label: "Taskboard", icon: ListChecks },

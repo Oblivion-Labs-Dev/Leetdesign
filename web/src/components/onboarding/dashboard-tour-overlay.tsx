@@ -22,15 +22,15 @@ type Step = {
 const STEPS: Step[] = [
   {
     selector: '[data-tour="nav-dashboard"]',
-    title: "This is your Dashboard",
+    title: "This is your Studio",
     description:
-      "Your home base on Leetdesign. Streaks, level, current tasks — all in one place. The sidebar lets you jump anywhere.",
+      "Your home base on Leetdesign. Continue projects, track component coverage, and jump to practice — all in one place.",
   },
   {
     selector: '[data-tour="nav-projects"]',
     title: "Projects — guided incidents",
     description:
-      "Each project is a multi-stage journey: learn a component, fix an incident, write a tiny snippet, ship it. Your badge unlocks more projects.",
+      "Each project is a multi-stage journey: learn a component, fix an incident, write a tiny snippet, ship it.",
   },
   {
     selector: '[data-tour="nav-practice"]',
@@ -39,29 +39,22 @@ const STEPS: Step[] = [
       "Drag components onto an open canvas, draw arrows between them, then submit your design for a VP review. This is your interview rehearsal.",
   },
   {
-    selector: '[data-tour="activity-calendar"]',
-    title: "Activity & streaks",
+    selector: '[data-tour="continue-card"]',
+    title: "Continue where you left off",
     description:
-      "Your daily attendance heatmap. Show up consistently — streaks compound just like in real teams.",
-  },
-  {
-    selector: '[data-tour="level-card"]',
-    title: "Your rank progression",
-    description:
-      "Earn XP from projects and practice. Hit the threshold and you ladder up — Intern → SE I → SE II → Senior → Principal.",
+      "Your most recent active project lives here. One click resumes the exact stage you were on.",
   },
   {
     selector: '[data-tour="ongoing-tasks"]',
-    title: "Pick up where you left off",
+    title: "Design sessions",
     description:
-      "All your active and shipped projects live here. Click Resume on any in-flight project to jump back in.",
+      "All your in-progress and shipped projects. Switch tabs to review what you've completed or resume what's still open.",
   },
   {
-    selector: '[data-tour="identity-card"]',
-    title: "Your employee badge",
+    selector: '[data-tour="catalog-progress"]',
+    title: "Component catalog progress",
     description:
-      "Your Leetdesign identity: alias, work email, badge tier and Stardust balance. Everything we use to identify you in the org.",
-    optional: true,
+      "Every project teaches new building blocks. This ring shows how much of the catalog you've unlocked through hands-on design.",
   },
 ];
 

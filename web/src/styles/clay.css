@@ -1,6 +1,7 @@
-/* Claymorphism design system — scoped to `.clay-landing` */
+/* Claymorphism design system — scoped to landing + studio */
 
-.clay-landing {
+.clay-landing,
+.clay-studio {
   --clay-bg: #f6f7fb;
   --clay-bg-soft: #eef1f8;
   --clay-surface: #fcfcfe;
@@ -33,9 +34,9 @@
 
   color: var(--clay-text);
   background:
-    radial-gradient(900px 500px at 88% -5%, rgba(155, 141, 196, 0.16), transparent 55%),
-    radial-gradient(700px 420px at 0% 28%, rgba(123, 168, 146, 0.14), transparent 50%),
-    radial-gradient(600px 400px at 50% 100%, rgba(107, 140, 174, 0.12), transparent 55%),
+    radial-gradient(900px 500px at 88% -5%, rgba(155, 141, 196, 0.22), transparent 55%),
+    radial-gradient(700px 420px at 0% 28%, rgba(123, 168, 146, 0.18), transparent 50%),
+    radial-gradient(600px 400px at 50% 100%, rgba(107, 140, 174, 0.16), transparent 55%),
     var(--clay-bg);
   font-family: var(--font-clay-body), ui-sans-serif, system-ui, sans-serif;
 }
@@ -43,7 +44,11 @@
 .clay-landing h1,
 .clay-landing h2,
 .clay-landing h3,
-.clay-landing .clay-display {
+.clay-landing .clay-display,
+.clay-studio h1,
+.clay-studio h2,
+.clay-studio h3,
+.clay-studio .clay-display {
   font-family: var(--font-clay-display), ui-rounded, system-ui, sans-serif;
 }
 
@@ -161,14 +166,16 @@
 }
 
 /* ── canvas background tokens (used in HeroClayCanvas) ─────────── */
-.clay-landing {
+.clay-landing,
+.clay-studio {
   --clay-white: #ffffff;
   --clay-canvas-a: #fafbfd;
   --clay-canvas-b: #edf0f7;
 }
 
 /* ── dark mode ───────────────────────────────────────────────────── */
-[data-theme="dark"] .clay-landing {
+[data-theme="dark"] .clay-landing,
+[data-theme="dark"] .clay-studio {
   --clay-bg: #0b111d;
   --clay-bg-soft: #121a2b;
   --clay-surface: #172237;
@@ -204,9 +211,9 @@
     inset 0 2px 0 rgba(255, 255, 255, 0.05);
 
   background:
-    radial-gradient(900px 500px at 88% -5%, rgba(185, 166, 222, 0.16), transparent 58%),
-    radial-gradient(700px 420px at 0% 28%, rgba(148, 196, 171, 0.1), transparent 52%),
-    radial-gradient(600px 400px at 50% 100%, rgba(137, 171, 208, 0.12), transparent 58%),
+    radial-gradient(900px 500px at 88% -5%, rgba(185, 166, 222, 0.22), transparent 58%),
+    radial-gradient(700px 420px at 0% 28%, rgba(148, 196, 171, 0.16), transparent 52%),
+    radial-gradient(600px 400px at 50% 100%, rgba(137, 171, 208, 0.18), transparent 58%),
     #0b111d;
 }
 
@@ -236,10 +243,126 @@
   background: linear-gradient(180deg, #172237 0%, #121a2b 100%);
 }
 
+/* ── studio dashboard (mockup palette) ───────────────────────────── */
+.clay-studio {
+  --studio-bg: #0b111b;
+  --studio-surface: #0f1624;
+  --studio-surface-2: #151d2e;
+  --studio-border: #1f2937;
+  --studio-purple: #7c5cfa;
+  --studio-purple-light: #a78bfa;
+  --studio-text: #e5e7eb;
+  --studio-text-muted: #9ca3af;
+  --studio-text-subtle: #6b7280;
+  --studio-green: #22c55e;
+  --studio-orange: #f59e0b;
+  --studio-blue: #3b82f6;
+
+  color: var(--studio-text);
+  background:
+    radial-gradient(ellipse 70% 55% at 72% 38%, rgba(124, 92, 250, 0.14), transparent 62%),
+    radial-gradient(ellipse 50% 40% at 12% 78%, rgba(99, 102, 241, 0.08), transparent 55%),
+    var(--studio-bg);
+}
+
+[data-theme="light"] .clay-studio {
+  --studio-bg: #f4f5f9;
+  --studio-surface: #ffffff;
+  --studio-surface-2: #eef0f6;
+  --studio-border: #dde1ea;
+  --studio-purple: #6d28d9;
+  --studio-purple-light: #7c3aed;
+  --studio-text: #111827;
+  --studio-text-muted: #4b5563;
+  --studio-text-subtle: #6b7280;
+  --studio-green: #16a34a;
+  --studio-orange: #d97706;
+  --studio-blue: #2563eb;
+
+  background:
+    radial-gradient(ellipse 70% 55% at 72% 38%, rgba(124, 58, 237, 0.08), transparent 62%),
+    radial-gradient(ellipse 50% 40% at 12% 78%, rgba(99, 102, 241, 0.05), transparent 55%),
+    var(--studio-bg);
+}
+
+/* Studio pages: use clean glow background, no cosmic dot noise */
+html:has(.clay-studio) body {
+  background: var(--studio-bg);
+  background-image:
+    radial-gradient(ellipse 70% 55% at 72% 38%, rgba(124, 92, 250, 0.14), transparent 62%),
+    radial-gradient(ellipse 50% 40% at 12% 78%, rgba(99, 102, 241, 0.08), transparent 55%);
+  background-attachment: fixed;
+}
+
+html:has(.clay-studio) body::before {
+  display: none;
+}
+
+[data-theme="light"] html:has(.clay-studio) body {
+  background-image:
+    radial-gradient(ellipse 70% 55% at 72% 38%, rgba(124, 58, 237, 0.08), transparent 62%),
+    radial-gradient(ellipse 50% 40% at 12% 78%, rgba(99, 102, 241, 0.05), transparent 55%);
+}
+
+.clay-studio .studio-card {
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: 16px;
+}
+
+.clay-studio .studio-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 10px;
+  background: var(--studio-purple);
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  transition: opacity 0.15s ease;
+}
+
+.clay-studio .studio-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.clay-studio .studio-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 10px;
+  border: 1px solid var(--studio-purple);
+  background: transparent;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--studio-purple-light);
+  transition: background 0.15s ease;
+}
+
+.clay-studio .studio-btn-ghost:hover {
+  background: color-mix(in srgb, var(--studio-purple) 12%, transparent);
+}
+
+.clay-studio .studio-link {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--studio-purple-light);
+  transition: color 0.15s ease;
+}
+
+.clay-studio .studio-link:hover {
+  color: var(--studio-text);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .clay-landing *,
   .clay-landing *::before,
-  .clay-landing *::after {
+  .clay-landing *::after,
+  .clay-studio *,
+  .clay-studio *::before,
+  .clay-studio *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
