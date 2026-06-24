@@ -20,7 +20,7 @@ export const inheritanceLesson: LearnLesson = {
     {
       type: "callout",
       variant: "definition",
-      title: "In one line",
+      title: "Summary",
       text: "Inheritance = shared implementation + specialized behavior.",
     },
     { type: "heading", level: 2, text: "When it helps" },
@@ -50,7 +50,7 @@ class Circle extends Shape {
     {
       type: "callout",
       variant: "warning",
-      title: "Watch out",
+      title: "Caution",
       text: "Prefer composition when behavior varies independently. Inheritance is not a reuse hammer.",
     },
   ],

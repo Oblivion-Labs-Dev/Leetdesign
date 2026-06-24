@@ -251,3 +251,21 @@ export async function markConceptCompleted(input: {
   await writeState(state);
   return row;
 }
+
+export async function unmarkConceptCompleted(input: {
+  trackSlug: string;
+  conceptSlug: string;
+}): Promise<boolean> {
+  const state = await readState();
+  if (!state.conceptsCompleted?.length) return false;
+
+  const before = state.conceptsCompleted.length;
+  state.conceptsCompleted = state.conceptsCompleted.filter(
+    (r) =>
+      !(r.trackSlug === input.trackSlug && r.conceptSlug === input.conceptSlug),
+  );
+  if (state.conceptsCompleted.length === before) return false;
+
+  await writeState(state);
+  return true;
+}

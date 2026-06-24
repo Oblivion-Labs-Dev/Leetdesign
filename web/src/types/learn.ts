@@ -14,7 +14,7 @@ export type LearnQuizQuestion = {
 };
 
 export type LearnBlock =
-  | { type: "heading"; level: 2 | 3; text: string }
+  | { type: "heading"; level: 2 | 3; text: string; id?: string }
   | { type: "paragraph"; text: string }
   | { type: "highlight"; text: string }
   | {
@@ -49,9 +49,15 @@ export type LearnBlock =
   | {
       type: "quiz";
       title?: string;
+      anchorId?: string;
       questions: LearnQuizQuestion[];
     }
   | { type: "divider" };
+
+export type LessonTocEntry = {
+  id: string;
+  label: string;
+};
 
 export interface LearnLesson {
   slug: string;
@@ -62,6 +68,10 @@ export interface LearnLesson {
   difficulty: "beginner" | "intermediate" | "advanced";
   objectives: string[];
   blocks: LearnBlock[];
+  /** Optional override — friendlier labels than raw heading text */
+  tableOfContents?: LessonTocEntry[];
+  /** Optional hero beside the table of contents — path under /public */
+  heroImage?: string;
   keyTakeaways: string[];
   /** Short copy for the concept detail panel */
   panelSummary: string;

@@ -19,22 +19,37 @@ function ConceptRow({
   const concept = CONCEPT_CATALOG[slug];
   if (!concept) return null;
 
+  const inProgress = active && !completed;
+
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={active}
-      className={`roadmap-concept-row ${active ? "roadmap-concept-row--active" : ""} ${completed ? "roadmap-concept-row--done" : ""}`}
+      className={`roadmap-concept-row ${active ? "roadmap-concept-row--active" : ""} ${completed ? "roadmap-concept-row--done" : ""} ${inProgress ? "roadmap-concept-row--in-progress" : ""}`}
     >
-      <span className="roadmap-concept-row-icon">
+      <span
+        className={`roadmap-concept-row-icon ${completed ? "roadmap-concept-row-icon--done" : ""}`}
+      >
         {completed ? (
-          <Check className="h-4 w-4" />
+          <Check className="roadmap-concept-row-check" strokeWidth={3} aria-hidden />
         ) : (
           <ConceptLogo slug={slug} size="sm" />
         )}
       </span>
       <span className="roadmap-concept-row-body">
-        <span className="roadmap-concept-row-title">{concept.title}</span>
+        <span className="roadmap-concept-row-title-row">
+          <span className="roadmap-concept-row-title">{concept.title}</span>
+          {completed ? (
+            <span className="roadmap-concept-status roadmap-concept-status--done">
+              Completed
+            </span>
+          ) : inProgress ? (
+            <span className="roadmap-concept-status roadmap-concept-status--progress">
+              In progress
+            </span>
+          ) : null}
+        </span>
         <span className="roadmap-concept-row-summary">{concept.panelSummary}</span>
       </span>
       <ChevronRight className="roadmap-concept-row-chevron h-4 w-4 shrink-0" aria-hidden />
@@ -44,13 +59,11 @@ function ConceptRow({
 
 function ModuleCard({
   step,
-  index,
   selectedConcept,
   completedConceptSlugs,
   onSelectConcept,
 }: {
   step: LearnPathStep;
-  index: number;
   selectedConcept: string;
   completedConceptSlugs: string[];
   onSelectConcept: (slug: string) => void;
@@ -65,10 +78,7 @@ function ModuleCard({
       className="roadmap-module-card"
     >
       <header className="roadmap-module-card-head">
-        <div className="roadmap-module-card-title-row">
-          <span className="roadmap-module-index">{index + 1}</span>
-          <h2 className="roadmap-module-card-title">{step.title}</h2>
-        </div>
+        <h2 className="roadmap-module-card-title">{step.title}</h2>
         <div className="roadmap-module-card-meta">
           {step.progressPct != null ? (
             <span className="roadmap-module-card-stat">
@@ -148,20 +158,26 @@ export function RoadmapOverview({
   const lockedSteps = steps.filter((s) => s.status === "locked");
 
   return (
-    <div className="roadmap-overview">
+    <div className="roadmap-overview roadmap-overview--spine">
       {unlockedSteps.map((step, i) => (
-        <ModuleCard
+        <div
           key={step.id}
-          step={step}
-          index={i}
-          selectedConcept={selectedConcept}
-          completedConceptSlugs={completedConceptSlugs}
-          onSelectConcept={onSelectConcept}
-        />
+          className={`roadmap-module-section ${i === unlockedSteps.length - 1 ? "roadmap-module-section--last" : ""}`}
+        >
+          <span className="roadmap-module-node" aria-hidden>
+            {i + 1}
+          </span>
+          <ModuleCard
+            step={step}
+            selectedConcept={selectedConcept}
+            completedConceptSlugs={completedConceptSlugs}
+            onSelectConcept={onSelectConcept}
+          />
+        </div>
       ))}
 
       {lockedSteps.length > 0 ? (
-        <section className="roadmap-upcoming-card">
+        <section className="roadmap-upcoming-card roadmap-module-section roadmap-module-section--upcoming">
           <h3 className="roadmap-upcoming-label">Upcoming</h3>
           <div className="roadmap-upcoming-list">
             {lockedSteps.map((step) => (

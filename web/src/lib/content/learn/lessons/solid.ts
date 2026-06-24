@@ -22,7 +22,7 @@ function solidLesson(
       {
         type: "callout",
         variant: "definition",
-        title: "In one line",
+        title: "Summary",
         text: summary,
       },
       {

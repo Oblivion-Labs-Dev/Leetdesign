@@ -4,138 +4,99 @@ export const encapsulationLesson: LearnLesson = {
   slug: "encapsulation",
   trackSlug: "oop",
   title: "Encapsulation",
-  subtitle:
-    "Learn how to hide the messy details and expose only what the outside world needs.",
-  readMinutes: 18,
+  subtitle: "",
+  heroImage: "/Concepts/encapsulation.png",
+  readMinutes: 8,
   difficulty: "beginner",
+  tableOfContents: [
+    { id: "what-is-encapsulation", label: "What is encapsulation?" },
+    { id: "public-vs-private", label: "Public vs private" },
+    { id: "bank-account-example", label: "Example: BankAccount" },
+    { id: "getters-and-setters", label: "Getters and setters" },
+    { id: "common-mistakes", label: "Common mistakes" },
+    { id: "quiz", label: "Quiz" },
+  ],
   objectives: [
-    "Explain encapsulation in plain English — no jargon required",
-    "Spot when code breaks because data is too exposed",
-    "Write a simple class with private data and public methods",
-    "Understand why this idea matters beyond toy examples",
+    "Explain encapsulation in one sentence",
+    "Use public and private to control access",
+    "Protect fields with methods that enforce rules",
   ],
   blocks: [
     {
-      type: "paragraph",
-      text: "If you have never written a class before, that is completely fine. Start here. Encapsulation is one of the most useful ideas in programming — and once you see it, you will notice broken examples everywhere.",
-    },
-    {
-      type: "highlight",
-      text: "Encapsulation means keeping an object's data private and letting the outside world interact only through a small, safe set of methods.",
-    },
-    {
-      type: "callout",
-      variant: "definition",
-      title: "In one line",
-      text: "Encapsulation = data + behavior + controlled access.",
-    },
-
-    { type: "heading", level: 2, text: "Think of it like an ATM" },
-    {
-      type: "paragraph",
-      text: "You do not walk into a bank vault and move cash yourself. You press buttons on an ATM: withdraw, deposit, check balance. The bank hides how money is stored, counted, and protected. You only get the operations the bank allows.",
-    },
-    {
-      type: "diagram",
-      id: "encapsulation-atm",
-      caption:
-        "The ATM is the public interface. The vault is private — you never touch it directly.",
+      type: "heading",
+      level: 2,
+      id: "what-is-encapsulation",
+      text: "What is encapsulation?",
     },
     {
       type: "paragraph",
-      text: "A well-designed object works the same way. Other parts of your program are the customer. Your object is the bank. They should use your buttons (methods), not reach into your vault (raw data).",
-    },
-
-    { type: "divider" },
-    { type: "heading", level: 2, text: "What lives inside an object?" },
-    {
-      type: "paragraph",
-      text: "Every object in object-oriented programming combines three things. Understanding these three pieces is the whole lesson.",
-    },
-    {
-      type: "list",
-      ordered: true,
-      items: [
-        "Data — the information it remembers (e.g. account balance, user name, cart items)",
-        "Behavior — the actions it can perform (e.g. withdraw money, send email, add to cart)",
-        "Access control — rules about who can touch the data directly (usually: nobody outside the object)",
-      ],
+      text: "Encapsulation keeps an object's data private and exposes only the methods other code needs. Callers use your methods — they don't edit your fields directly.",
     },
     {
       type: "diagram",
       id: "encapsulation-object",
       caption:
-        "Data stays inside. The outside world talks to your object through public methods.",
-    },
-    {
-      type: "highlight",
-      text: "The golden rule: other code should not be able to change your object's data unless you explicitly allow it.",
+        "Callers use public methods. Private fields stay inside the object.",
     },
 
-    { type: "heading", level: 2, text: "A story: the broken bank account" },
+    {
+      type: "heading",
+      level: 2,
+      id: "public-vs-private",
+      text: "Public vs private",
+    },
     {
       type: "paragraph",
-      text: "Imagine we model a bank account with a single public number called balance. Any other file in the project can write account.balance = -500 or account.balance = 999999. Nothing stops it. The account can go negative, or inflate magically, and no one gets notified.",
-    },
-    {
-      type: "callout",
-      variant: "warning",
-      title: "Why this hurts",
-      text: "When data is public, every part of your app becomes responsible for keeping it valid. One forgotten check in one file — and your whole model is wrong.",
-    },
-    {
-      type: "code",
-      language: "typescript",
-      caption: "❌ Bad — balance is public. Anyone can break it.",
-      code: `class BankAccount {
-  // Anyone can read AND write this directly
-  balance: number = 0;
-}
-
-const account = new BankAccount();
-
-// Oops — no validation, no log, no fraud check
-account.balance = -100;
-account.balance = 1_000_000;`,
+      text: "public — other code can call it. private — only code inside the same class can access it. Default fields to private; expose behavior through public methods.",
     },
     {
       type: "diagram",
-      id: "encapsulation-bad-vs-good",
-      caption: "Left: chaos. Right: the object enforces its own rules.",
+      id: "encapsulation-atm",
+      caption:
+        "Public methods are the entry point. Private fields are not visible outside the class.",
     },
 
-    { type: "heading", level: 2, text: "The fix: make data private" },
     {
-      type: "paragraph",
-      text: "In TypeScript (and most OOP languages), you mark internal fields as private. That means only code inside the class can read or write them. Everyone else must go through methods you define.",
+      type: "heading",
+      level: 2,
+      id: "bank-account-example",
+      text: "Example: BankAccount",
     },
     {
-      type: "highlight",
-      text: "private is not about secrecy from hackers — it is about protecting your object from accidental misuse by your own teammates (or future you).",
+      type: "paragraph",
+      text: "A public balance field lets any file set invalid values — no checks, no logging, one bad line breaks the account.",
     },
     {
       type: "code",
       language: "typescript",
-      caption: "✅ Good — balance is private. Rules live inside withdraw().",
+      caption: "Public balance — any code can corrupt state",
+      code: `class BankAccount {
+  balance: number = 0;  // public — risky
+}
+
+const account = new BankAccount();
+account.balance = -100;`,
+    },
+    {
+      type: "paragraph",
+      text: "Make balance private and route changes through methods that validate input.",
+    },
+    {
+      type: "code",
+      language: "typescript",
+      caption: "Private balance — rules live in withdraw()",
       code: `class BankAccount {
   private balance: number;
 
   constructor(startingAmount: number) {
-    if (startingAmount < 0) {
-      throw new Error("Cannot open account with negative balance");
-    }
+    if (startingAmount < 0) throw new Error("Negative balance");
     this.balance = startingAmount;
   }
 
   withdraw(amount: number): void {
-    if (amount <= 0) {
-      throw new Error("Withdrawal must be positive");
-    }
-    if (amount > this.balance) {
-      throw new Error("Not enough money");
-    }
+    if (amount <= 0) throw new Error("Must be positive");
+    if (amount > this.balance) throw new Error("Insufficient funds");
     this.balance -= amount;
-    // You could also log here, notify fraud team, etc.
   }
 
   getBalance(): number {
@@ -144,52 +105,31 @@ account.balance = 1_000_000;`,
 }`,
     },
     {
-      type: "callout",
-      variant: "insight",
-      title: "What changed?",
-      text: "The balance still exists — but now every change goes through withdraw(), where you check amounts, throw errors, and could add logging. Callers cannot skip those rules.",
-    },
-
-    { type: "heading", level: 3, text: "Try it step by step" },
-    {
-      type: "paragraph",
-      text: "Read the flow below. Each step shows what happens when another part of the app uses our safe account.",
-    },
-    {
-      type: "list",
-      ordered: true,
-      items: [
-        "const account = new BankAccount(500) — account opens with $500 inside (private)",
-        "account.withdraw(50) — the method checks: amount > 0? enough balance? then subtracts",
-        "account.getBalance() — returns 450 without exposing the field for writing",
-        "account.balance = 0 — TypeScript error! balance is private",
-      ],
-    },
-
-    {
-      type: "animation",
-      id: "encapsulation-vault",
-      caption:
-        "Think of private fields locked in a vault. Public methods are the only doors in.",
+      type: "diagram",
+      id: "encapsulation-bad-vs-good",
+      caption: "Left: anyone edits balance. Right: changes go through withdraw().",
     },
 
     { type: "divider" },
-    { type: "heading", level: 2, text: "Getters and setters — when do you need them?" },
+    {
+      type: "heading",
+      level: 2,
+      id: "getters-and-setters",
+      text: "Getters and setters",
+    },
     {
       type: "paragraph",
-      text: "Sometimes you want outside code to read a value but not write it freely. A getter (like getBalance()) returns a copy or snapshot. A setter lets you write — but only if you validate first.",
+      text: "Use getters and setters when reads or writes need validation. When there is real logic, prefer a named method — deposit(500) over setBalance(500).",
     },
     {
       type: "code",
       language: "typescript",
-      caption: "A setter with validation — age cannot be negative",
+      caption: "Setter that rejects invalid input",
       code: `class UserProfile {
   private age: number = 0;
 
   setAge(value: number): void {
-    if (value < 0 || value > 150) {
-      throw new Error("Invalid age");
-    }
+    if (value < 0 || value > 150) throw new Error("Invalid age");
     this.age = value;
   }
 
@@ -198,130 +138,89 @@ account.balance = 1_000_000;`,
   }
 }`,
     },
-    {
-      type: "callout",
-      variant: "tip",
-      title: "Beginner tip",
-      text: "Prefer behavior methods (withdraw, upgradePlan, addItem) over bare setters when there is logic involved. setBalance(500) is usually a smell; deposit(500) tells a clearer story.",
-    },
 
-    { type: "heading", level: 2, text: "Three mistakes beginners make" },
+    {
+      type: "heading",
+      level: 2,
+      id: "common-mistakes",
+      text: "Common mistakes",
+    },
     {
       type: "list",
       items: [
-        "Making every field public because it is faster — you pay for it later in bugs",
-        "Writing giant getter/setter pairs for everything with zero validation",
-        "Exposing internal lists or arrays that callers can mutate: return copies, or expose read-only views",
+        "Leaving fields public for speed — bugs spread when many files touch the same data",
+        "Getters and setters with no validation — extra code, no protection",
+        "Returning a private array directly — callers can still mutate it with .push(); return a copy instead",
       ],
-    },
-    {
-      type: "callout",
-      variant: "warning",
-      title: "Leaky collections",
-      text: "If your class holds private items: Item[] and you return that same array from a getter, callers can call .push() on it and bypass your addItem() logic. Return [...this.items] or freeze the array.",
-    },
-
-    { type: "heading", level: 2, text: "Why interviewers and senior devs care" },
-    {
-      type: "paragraph",
-      text: "Encapsulation is not just a classroom exercise. In real systems — a payment service, a user session, a cache — you need to change internals without breaking every caller. Private data + a stable public API is how teams ship refactors safely.",
-    },
-    {
-      type: "highlight",
-      text: "Every public method is a promise. Keep that surface small, and you stay free to improve everything behind it.",
-    },
-    {
-      type: "callout",
-      variant: "insight",
-      title: "Interview signal",
-      text: "Strong answers explain why a field is private — tie it to invariants (rules that must always be true). Example: 'Balance must never be negative' is an invariant; encapsulation enforces it in one place.",
     },
 
     { type: "divider" },
     {
       type: "quiz",
-      title: "Quiz — check your understanding",
+      title: "Quiz",
+      anchorId: "quiz",
       questions: [
         {
-          question:
-            "In plain English, what is encapsulation?",
+          question: "What is encapsulation?",
           options: [
-            "Copying code from one file to another",
-            "Hiding internal data and exposing only controlled methods",
-            "Making every variable global so it is easy to access",
-            "Writing the same function twice for safety",
+            "Copying the same function into many files",
+            "Hiding internal data and exposing controlled methods",
+            "Making every variable global",
+            "Deleting unused code",
           ],
           correctIndex: 1,
           explanation:
-            "Encapsulation bundles data with behavior and restricts direct access. Callers use your methods — they do not reach into private fields.",
+            "Encapsulation limits direct access to fields. Other code uses your methods.",
         },
         {
-          question:
-            "Why is public balance: number considered risky?",
+          question: "What does private mean on a field?",
           options: [
-            "It makes the file too long",
-            "Any code can set invalid values and skip validation",
-            "TypeScript does not support numbers",
-            "Private fields run slower",
+            "Only code inside the same class can access it",
+            "The field is encrypted on disk",
+            "The field can never change",
+            "The field is hidden from the compiler",
+          ],
+          correctIndex: 0,
+          explanation:
+            "private limits access to the class body. External code must use public methods.",
+        },
+        {
+          question: "Why is a public balance field risky?",
+          options: [
+            "It makes the class file longer",
+            "Any code can set invalid values without running your checks",
+            "TypeScript cannot store numbers in fields",
+            "Private fields are slower at runtime",
           ],
           correctIndex: 1,
           explanation:
-            "Public data lets every caller change state without checks. One mistake anywhere can corrupt your object.",
+            "Public fields let every caller skip validation.",
         },
         {
-          question:
-            "What does the private keyword do in a class?",
-          options: [
-            "Encrypts data on disk",
-            "Allows only code inside the class to access that member",
-            "Makes the variable read-only forever",
-            "Hides the class from the compiler",
-          ],
-          correctIndex: 1,
-          explanation:
-            "private limits access to the class body. Outside code must use the public methods you provide.",
-        },
-        {
-          question:
-            "Which is the better design for a bank account?",
+          question: "Which is the better way to take $50 from an account?",
           options: [
             "account.balance = account.balance - 50",
             "account.withdraw(50)",
             "account.setBalance(account.balance - 50) with no checks",
-            "A global variable called TOTAL_MONEY",
+            "A shared global variable for all accounts",
           ],
           correctIndex: 1,
           explanation:
-            "withdraw(50) keeps validation, logging, and business rules inside the object — exactly what encapsulation is for.",
-        },
-        {
-          question:
-            "What is an invariant?",
-          options: [
-            "A variable that never changes type",
-            "A rule that must always stay true (e.g. balance ≥ 0)",
-            "A private method with no parameters",
-            "A comment at the top of a file",
-          ],
-          correctIndex: 1,
-          explanation:
-            "Invariants are the truths your object must maintain. Encapsulation lets you enforce them in one place instead of scattered across the codebase.",
+            "withdraw(50) runs validation and keeps rules in one place.",
         },
       ],
     },
   ],
   keyTakeaways: [
-    "Encapsulation = data + behavior + controlled access.",
-    "Keep fields private; expose behavior through methods.",
-    "Public data lets anyone break your rules — private data keeps rules in one place.",
-    "Small public APIs make code easier to change and test.",
-    "Think ATM, not open vault: buttons in, vault hidden.",
+    "Keep fields private; expose behavior through public methods.",
+    "Public fields let bugs spread — validation belongs inside the class.",
+    "Prefer named methods (deposit, withdraw) when there is business logic.",
   ],
   panelSummary:
-    "Encapsulation is the bundling of data and methods that operate on that data within a single unit, while restricting direct access to some of the object's components.",
+    "Encapsulation bundles data and methods in one unit and restricts direct access to internal state.",
   panelKeyPoints: [
-    "Protects data from unintended interference",
-    "Hides implementation details from the outside world",
-    "Makes code more modular and easier to maintain",
+    "Protects data from unintended external changes",
+    "Hides implementation behind public methods",
+    "Makes code easier to test and change",
   ],
 };

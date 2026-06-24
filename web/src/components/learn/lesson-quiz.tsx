@@ -73,10 +73,12 @@ function QuizQuestion({
 }
 
 export function LessonQuiz({
-  title = "Quick check",
+  title,
+  anchorId,
   questions,
 }: {
   title?: string;
+  anchorId?: string;
   questions: LearnQuizQuestion[];
 }) {
   const [score, setScore] = useState(0);
@@ -89,11 +91,14 @@ export function LessonQuiz({
   };
 
   return (
-    <section className="learn-quiz studio-card">
+    <section
+      id={anchorId}
+      className={`learn-quiz studio-card ${anchorId ? "learn-scroll-target" : ""}`}
+    >
       <div className="learn-quiz-header">
-        <h2 className="learn-heading-2 !mt-0">{title}</h2>
+        {title ? <h2 className="learn-heading-2 !mt-0">{title}</h2> : null}
         <p className="learn-quiz-subtitle">
-          Test your understanding — pick the best answer for each question.
+          Select the best answer for each question.
         </p>
       </div>
 
@@ -115,10 +120,10 @@ export function LessonQuiz({
           </span>
           <span className="learn-quiz-score-label">
             {score === questions.length
-              ? "Perfect! You've got encapsulation down."
+              ? "All answers correct."
               : score >= questions.length / 2
-                ? "Good effort — review the explanations above and try again later."
-                : "Keep going — re-read the highlighted sections and try again."}
+                ? "Review the explanations and retry."
+                : "Review the cited sections and retry."}
           </span>
         </div>
       ) : null}
