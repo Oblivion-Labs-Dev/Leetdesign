@@ -23,7 +23,7 @@ const NAV: {
   { href: "/projects", label: "Projects", icon: FolderKanban, tour: "nav-projects" },
   { href: "/practice", label: "Practice", icon: Sparkles, tour: "nav-practice" },
   { href: "/library", label: "Component Library", icon: Library },
-  { href: "/brushup", label: "Brush-up", icon: BookOpenText },
+  { href: "/brushup", label: "Concepts", icon: BookOpenText },
 ];
 
 function isActive(pathname: string, href: string) {

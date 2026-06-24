@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { StudioPageShell } from "@/components/studio/studio-page-shell";
 import { ALL_COMPONENTS } from "@/lib/content/components";
 import { COMPONENT_ICONS } from "@/components/pipeline/icon-map";
 import { Card } from "@/components/ui/card";
@@ -14,10 +14,7 @@ export default async function LibraryPage() {
   const seenSet = new Set(stats.componentsSeen.map((c) => c.componentId));
 
   return (
-    <AppShell
-      title="Component Library"
-      subtitle="Components unlock here as you learn them inside a project."
-    >
+    <StudioPageShell>
       <SectionHeader
         eyebrow="Knowledge base"
         title="Only what you have actually learned is unlocked"
@@ -77,6 +74,6 @@ export default async function LibraryPage() {
           );
         })}
       </div>
-    </AppShell>
+    </StudioPageShell>
   );
 }

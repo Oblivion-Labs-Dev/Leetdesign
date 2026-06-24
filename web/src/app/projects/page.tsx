@@ -7,7 +7,7 @@ import {
   Bot,
   BookOpen,
 } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { StudioPageShell } from "@/components/studio/studio-page-shell";
 import { PROJECTS } from "@/lib/content/projects";
 import { BADGES } from "@/lib/badges";
 import { SectionHeader } from "@/components/ui/section";
@@ -46,7 +46,7 @@ export default async function ProjectsPage() {
   );
 
   return (
-    <AppShell title="Projects" subtitle="Pick a guided project gated by your badge level.">
+    <StudioPageShell>
       <SectionHeader
         eyebrow="Catalog"
         title="Build something real, end to end"
@@ -178,7 +178,7 @@ export default async function ProjectsPage() {
 
       {/* Helper bot card — explains what's gated, where to go next. */}
       <ProjectsHelperBot profileBadgeShort={BADGES[profile.badge].shortTitle} />
-    </AppShell>
+    </StudioPageShell>
   );
 }
 

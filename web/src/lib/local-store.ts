@@ -23,12 +23,19 @@ type VisitDayRow = {
   count: number;
 };
 
+type ConceptCompletedRow = {
+  trackSlug: string;
+  conceptSlug: string;
+  completedAt: string;
+};
+
 type UserState = {
   profile: UserProfile;
   firstVisitCompleted: boolean;
   componentsSeen: ComponentSeenRow[];
   projectProgress: ProjectProgressRow[];
   visitDays: VisitDayRow[];
+  conceptsCompleted: ConceptCompletedRow[];
 };
 
 /** Outside the Next.js project tree so dev file-watching does not reload on every write. */
@@ -62,6 +69,7 @@ function defaultState(): UserState {
     componentsSeen: [],
     projectProgress: [],
     visitDays: [],
+    conceptsCompleted: [],
   };
 }
 
@@ -215,4 +223,31 @@ export async function getVisitDays(days = 120): Promise<VisitDayRow[]> {
   return state.visitDays
     .filter((v) => v.day >= since)
     .sort((a, b) => (a.day < b.day ? -1 : 1));
+}
+
+export async function getConceptsCompleted(): Promise<ConceptCompletedRow[]> {
+  const state = await readState();
+  return state.conceptsCompleted ?? [];
+}
+
+export async function markConceptCompleted(input: {
+  trackSlug: string;
+  conceptSlug: string;
+}): Promise<ConceptCompletedRow> {
+  const state = await readState();
+  if (!state.conceptsCompleted) state.conceptsCompleted = [];
+
+  const existing = state.conceptsCompleted.find(
+    (r) =>
+      r.trackSlug === input.trackSlug && r.conceptSlug === input.conceptSlug,
+  );
+  if (existing) return existing;
+
+  const row: ConceptCompletedRow = {
+    ...input,
+    completedAt: new Date().toISOString(),
+  };
+  state.conceptsCompleted.push(row);
+  await writeState(state);
+  return row;
 }

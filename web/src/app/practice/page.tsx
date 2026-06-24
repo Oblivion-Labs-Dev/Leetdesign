@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Sparkles, Layers } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
+import { StudioPageShell } from "@/components/studio/studio-page-shell";
 import { PRACTICE_EXERCISES } from "@/lib/content/practice";
 import { PROJECTS } from "@/lib/content/projects";
 import { SectionHeader } from "@/components/ui/section";
@@ -14,10 +14,7 @@ export default async function PracticeIndexPage() {
   const projectMap = new Map(PROJECTS.map((p) => [p.id, p.shortTitle]));
 
   return (
-    <AppShell
-      title="Practice"
-      subtitle="Open-ended architecture prompts. Submit to a VP review for AI grading."
-    >
+    <StudioPageShell>
       <SectionHeader
         eyebrow="Free-build mode"
         title="Design from scratch, defend it in review"
@@ -51,7 +48,7 @@ export default async function PracticeIndexPage() {
           ))}
         </div>
       </section>
-    </AppShell>
+    </StudioPageShell>
   );
 }
 

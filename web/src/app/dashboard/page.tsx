@@ -1,8 +1,6 @@
-import { getCurrentUserProfile } from "@/lib/auth-guard";
 import { getCurrentUserLearningStats } from "@/lib/learning-stats";
 import { DashboardTourOverlay } from "@/components/onboarding/dashboard-tour-overlay";
-import { StudioLayout } from "@/components/studio/studio-layout";
-import { StudioHeader } from "@/components/studio/studio-header";
+import { StudioPageShell } from "@/components/studio/studio-page-shell";
 import { StudioStats } from "@/components/studio/studio-stats";
 import { StudioContinueCard } from "@/components/studio/studio-continue-card";
 import { StudioDailyInsight } from "@/components/studio/studio-daily-insight";
@@ -18,18 +16,14 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ tour?: string }>;
 }) {
-  const profile = await getCurrentUserProfile();
   const stats = await getCurrentUserLearningStats();
   const params = await searchParams;
-  const firstName = profile.fullName.split(" ")[0] || profile.alias;
 
   return (
-    <StudioLayout>
+    <StudioPageShell>
       <DashboardTourOverlay enabled={params.tour === "1"} />
-      <StudioHeader firstName={firstName} />
 
-      <main className="w-full flex-1 px-5 pb-5 lg:px-6">
-        <div className="flex flex-col gap-3">
+      <div className="flex w-full flex-col gap-3">
           <StudioStats stats={stats} />
 
           <div className="grid gap-3 lg:grid-cols-3 lg:items-stretch">
@@ -57,7 +51,6 @@ export default async function DashboardPage({
             </div>
           </div>
         </div>
-      </main>
-    </StudioLayout>
+    </StudioPageShell>
   );
 }
