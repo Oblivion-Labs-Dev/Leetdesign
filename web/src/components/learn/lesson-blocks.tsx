@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { LearnBlock } from "@/types/learn";
+import { slugifyHeading } from "@/lib/content/learn/heading-utils";
 import { LessonDiagram } from "./lesson-diagrams";
 import { LessonQuiz } from "./lesson-quiz";
 
@@ -17,7 +18,7 @@ const CALLOUT_STYLES = {
   warning: {
     border: "var(--studio-orange)",
     bg: "color-mix(in srgb, var(--studio-orange) 10%, transparent)",
-    label: "Watch out",
+    label: "Caution",
   },
   definition: {
     border: "var(--studio-green)",
@@ -28,11 +29,21 @@ const CALLOUT_STYLES = {
 
 function LessonBlock({ block }: { block: LearnBlock }) {
   switch (block.type) {
-    case "heading":
+    case "heading": {
+      const headingId = block.id ?? slugifyHeading(block.text);
       if (block.level === 2) {
-        return <h2 className="learn-heading-2">{block.text}</h2>;
+        return (
+          <h2 id={headingId} className="learn-heading-2 learn-scroll-target">
+            {block.text}
+          </h2>
+        );
       }
-      return <h3 className="learn-heading-3">{block.text}</h3>;
+      return (
+        <h3 id={headingId} className="learn-heading-3 learn-scroll-target">
+          {block.text}
+        </h3>
+      );
+    }
 
     case "paragraph":
       return <p className="learn-paragraph">{block.text}</p>;
@@ -119,7 +130,13 @@ function LessonBlock({ block }: { block: LearnBlock }) {
       return <LessonDiagram id={block.id} caption={block.caption} />;
 
     case "quiz":
-      return <LessonQuiz title={block.title} questions={block.questions} />;
+      return (
+        <LessonQuiz
+          title={block.title}
+          anchorId={block.anchorId}
+          questions={block.questions}
+        />
+      );
 
     case "divider":
       return <hr className="learn-divider" />;

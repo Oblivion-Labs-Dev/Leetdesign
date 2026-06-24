@@ -1,11 +1,14 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, ArrowRight, Clock, Target } from "lucide-react";
 import type { LearnLesson } from "@/types/learn";
+import { extractLessonToc } from "@/lib/content/learn/heading-utils";
 import { getAdjacentLessons } from "@/lib/content/learn/registry";
 import { getTrack } from "@/lib/content/learn/tracks";
 import { LessonBlocks } from "./lesson-blocks";
 import { LessonCompleteButton } from "./lesson-complete-button";
 import { LessonOverviewBack } from "./lesson-overview-back";
+import { LessonTableOfContents } from "./lesson-toc";
 
 export function LessonTemplate({
   lesson,
@@ -22,6 +25,9 @@ export function LessonTemplate({
 }) {
   const track = getTrack(lesson.trackSlug);
   const { prev, next } = getAdjacentLessons(lesson.trackSlug, lesson.slug);
+  const toc =
+    lesson.tableOfContents ??
+    extractLessonToc(lesson.blocks).map((item) => ({ id: item.id, label: item.text }));
 
   const lessonHref = (slug: string) =>
     inlineNav
@@ -51,13 +57,36 @@ export function LessonTemplate({
         </div>
 
         <h1 className="learn-lesson-title">{lesson.title}</h1>
-        <p className="learn-lesson-subtitle">{lesson.subtitle}</p>
+
+        {toc.length > 0 || lesson.heroImage ? (
+          <div
+            className={`learn-lesson-intro ${lesson.heroImage ? "learn-lesson-intro--with-hero" : ""}`}
+          >
+            {toc.length > 0 ? <LessonTableOfContents items={toc} /> : null}
+            {lesson.heroImage ? (
+              <div className="learn-lesson-hero" aria-hidden>
+                <Image
+                  src={lesson.heroImage}
+                  alt=""
+                  width={360}
+                  height={360}
+                  className="learn-lesson-hero-image"
+                  priority
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!lesson.tableOfContents && lesson.subtitle ? (
+          <p className="learn-lesson-subtitle">{lesson.subtitle}</p>
+        ) : null}
       </header>
 
       <section className="learn-objectives studio-card">
         <div className="flex items-center gap-2 text-sm font-semibold text-[var(--studio-text)]">
           <Target className="h-4 w-4 text-[var(--studio-purple-light)]" />
-          What you&apos;ll learn
+          Learning objectives
         </div>
         <ul className="mt-3 space-y-2">
           {lesson.objectives.map((obj) => (

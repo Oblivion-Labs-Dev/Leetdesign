@@ -20,7 +20,7 @@ export const polymorphismLesson: LearnLesson = {
     {
       type: "callout",
       variant: "definition",
-      title: "In one line",
+      title: "Summary",
       text: "Polymorphism = same call site, different behavior.",
     },
     { type: "heading", level: 2, text: "In production systems" },

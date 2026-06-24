@@ -33,11 +33,37 @@ export function LessonCompleteButton({
     }
   }
 
+  async function markIncomplete() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/user/concepts/complete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackSlug, conceptSlug }),
+      });
+      if (!res.ok) return;
+      setDone(false);
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (done) {
     return (
-      <div className="learn-complete-banner">
-        <Check className="h-4 w-4 text-[var(--studio-green)]" />
-        <span>Concept marked complete — progress updated on your roadmap.</span>
+      <div className="learn-complete-actions">
+        <div className="learn-complete-banner">
+          <Check className="h-4 w-4 text-[var(--studio-green)]" />
+          <span>Concept marked complete — progress updated on your roadmap.</span>
+        </div>
+        <button
+          type="button"
+          onClick={markIncomplete}
+          disabled={loading}
+          className="studio-btn-ghost"
+        >
+          {loading ? "Saving…" : "Mark as incomplete"}
+        </button>
       </div>
     );
   }

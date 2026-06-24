@@ -15,12 +15,12 @@ export const abstractionLesson: LearnLesson = {
   blocks: [
     {
       type: "paragraph",
-      text: "Abstraction is about simplifying complexity by modeling only the essential features of an object. Callers interact with a clean interface — they do not need to know how the work gets done behind the scenes.",
+      text: "Abstraction models essential behavior and omits implementation detail. Callers depend on the interface contract, not on internal mechanics.",
     },
     {
       type: "callout",
       variant: "definition",
-      title: "In one line",
+      title: "Summary",
       text: "Abstraction = show the what, hide the how.",
     },
     { type: "heading", level: 2, text: "Why teams rely on it" },

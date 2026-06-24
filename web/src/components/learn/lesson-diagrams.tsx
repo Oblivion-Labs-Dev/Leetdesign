@@ -97,26 +97,64 @@ function BadVsGoodDiagram() {
   );
 }
 
-function AtmDiagram() {
+function InterfaceBoundaryDiagram() {
   return (
     <svg viewBox="0 0 480 200" className="learn-diagram-svg" aria-hidden>
-      <rect x="160" y="20" width="160" height="100" rx="8" fill="color-mix(in srgb, var(--studio-purple) 8%, transparent)" stroke="currentColor" strokeWidth="1.5" opacity="0.5" />
-      <text x="240" y="50" textAnchor="middle" className="learn-diagram-label">ATM (public interface)</text>
-      <text x="240" y="75" textAnchor="middle" className="learn-diagram-mono">withdraw()</text>
-      <text x="240" y="95" textAnchor="middle" className="learn-diagram-mono">checkBalance()</text>
-      <rect x="180" y="130" width="120" height="50" rx="8" fill="color-mix(in srgb, var(--studio-purple) 15%, transparent)" stroke="var(--studio-purple)" strokeWidth="1.5" strokeDasharray="4 3" />
-      <text x="240" y="160" textAnchor="middle" className="learn-diagram-label">Vault (private)</text>
-      <path d="M240 120 L240 128" stroke="var(--studio-purple)" strokeWidth="1.5" />
-      <circle cx="80" cy="70" r="28" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
-      <text x="80" y="75" textAnchor="middle" className="learn-diagram-caption-svg">You</text>
-      <path d="M108 70 L158 70" stroke="currentColor" strokeWidth="1.5" opacity="0.35" markerEnd="url(#atm-arrow)" />
+      <rect
+        x="40"
+        y="24"
+        width="180"
+        height="140"
+        rx="12"
+        fill="color-mix(in srgb, var(--studio-blue) 8%, transparent)"
+        stroke="var(--studio-blue)"
+        strokeWidth="1.5"
+      />
+      <text x="130" y="52" textAnchor="middle" className="learn-diagram-label">
+        Public methods
+      </text>
+      <text x="130" y="78" textAnchor="middle" className="learn-diagram-mono">
+        withdraw()
+      </text>
+      <text x="130" y="100" textAnchor="middle" className="learn-diagram-mono">
+        getBalance()
+      </text>
+      <text x="130" y="145" textAnchor="middle" className="learn-diagram-caption-svg">
+        Callable by external modules
+      </text>
+
+      <rect
+        x="260"
+        y="24"
+        width="180"
+        height="140"
+        rx="12"
+        fill="color-mix(in srgb, var(--studio-purple) 10%, transparent)"
+        stroke="var(--studio-purple)"
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+      />
+      <text x="350" y="52" textAnchor="middle" className="learn-diagram-label">
+        Private state
+      </text>
+      <text x="350" y="82" textAnchor="middle" className="learn-diagram-mono">
+        balance
+      </text>
+      <text x="350" y="104" textAnchor="middle" className="learn-diagram-mono">
+        auditLog
+      </text>
+      <text x="350" y="145" textAnchor="middle" className="learn-diagram-caption-svg">
+        Not directly accessible
+      </text>
+
+      <path d="M220 92 L252 92" stroke="currentColor" strokeWidth="1.5" opacity="0.35" markerEnd="url(#boundary-arrow)" />
       <defs>
-        <marker id="atm-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <marker id="boundary-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
           <path d="M0,0 L6,3 L0,6" fill="currentColor" opacity="0.4" />
         </marker>
       </defs>
-      <text x="240" y="195" textAnchor="middle" className="learn-diagram-caption-svg">
-        You use buttons — you never open the vault yourself
+      <text x="240" y="190" textAnchor="middle" className="learn-diagram-caption-svg">
+        External code uses public methods — not internal fields
       </text>
     </svg>
   );
@@ -128,7 +166,7 @@ const DIAGRAMS: Record<
 > = {
   "encapsulation-object": ObjectAnatomyDiagram,
   "encapsulation-bad-vs-good": BadVsGoodDiagram,
-  "encapsulation-atm": AtmDiagram,
+  "encapsulation-atm": InterfaceBoundaryDiagram,
 };
 
 export function LessonDiagram({
