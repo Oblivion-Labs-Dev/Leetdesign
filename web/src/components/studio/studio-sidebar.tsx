@@ -2,33 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  PenTool,
-  FolderKanban,
-  Sparkles,
-  Library,
-  BookOpenText,
-  Plus,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { LeetdesignLogo } from "@/components/layout/logo";
 import { cn } from "@/lib/utils";
-
-const NAV: {
-  href: string;
-  label: string;
-  icon: typeof PenTool;
-  tour?: string;
-}[] = [
-  { href: "/dashboard", label: "Studio", icon: PenTool, tour: "nav-dashboard" },
-  { href: "/projects", label: "Projects", icon: FolderKanban, tour: "nav-projects" },
-  { href: "/practice", label: "Practice", icon: Sparkles, tour: "nav-practice" },
-  { href: "/library", label: "Component Library", icon: Library },
-  { href: "/brushup", label: "Concepts", icon: BookOpenText },
-];
-
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(href + "/");
-}
+import { isStudioNavActive, STUDIO_NAV_ITEMS } from "./studio-nav-items";
 
 export function StudioSidebar() {
   const pathname = usePathname();
@@ -40,8 +17,8 @@ export function StudioSidebar() {
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
-        {NAV.map((item) => {
-          const active = isActive(pathname, item.href);
+        {STUDIO_NAV_ITEMS.map((item) => {
+          const active = isStudioNavActive(pathname, item.href);
           const Icon = item.icon;
           return (
             <Link

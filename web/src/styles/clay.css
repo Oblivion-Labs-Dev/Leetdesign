@@ -390,6 +390,12 @@ html:has(.clay-studio) body::before {
   max-width: 720px;
 }
 
+.clay-studio .learn-lesson--embedded {
+  max-width: none;
+  width: 100%;
+  padding-top: 0;
+}
+
 .clay-studio .learn-back-link {
   display: inline-flex;
   align-items: center;
@@ -468,18 +474,52 @@ html:has(.clay-studio) body::before {
 }
 
 .clay-studio .learn-lesson-title {
-  margin-top: 0.75rem;
-  font-size: 2rem;
+  margin-top: 0;
+  font-size: clamp(1.375rem, 4vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--studio-text);
 }
 
+.clay-studio .learn-lesson-hero-row {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+  align-items: start;
+}
+
+.clay-studio .learn-lesson-hero-row-copy {
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .clay-studio .learn-lesson-hero-row--with-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1.5rem 2rem;
+  }
+}
+
+.clay-studio .learn-lesson-main {
+  min-width: 0;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .clay-studio .roadmap-body--reading {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
+  }
+}
+
 .clay-studio .learn-lesson-subtitle {
-  margin-top: 0.625rem;
+  margin-top: 0.75rem;
   font-size: 1rem;
   line-height: 1.6;
   color: var(--studio-text-muted);
+}
+
+.clay-studio .learn-lesson-header {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--studio-border);
 }
 
 .clay-studio .learn-objectives,
@@ -1297,34 +1337,34 @@ html:has(.clay-studio--fixed) body {
   line-height: 1.2;
 }
 
-.clay-studio .learn-lesson--embedded {
-  max-width: 720px;
-  padding-top: 0;
-}
-
 .clay-studio .learn-scroll-target {
   scroll-margin-top: 1rem;
 }
 
 .clay-studio .learn-inline-toc {
-  margin-top: 0.75rem;
+  margin-top: 0.875rem;
 }
 
 .clay-studio .learn-inline-toc-heading {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--studio-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--studio-text-subtle);
 }
 
 .clay-studio .learn-inline-toc-list {
-  margin: 0.5rem 0 0;
+  margin: 0.625rem 0 0;
   padding-left: 1.125rem;
   list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .clay-studio .learn-inline-toc-item {
-  margin-top: 0.2rem;
+  margin-top: 0;
 }
 
 .clay-studio .learn-inline-toc-item::marker {
@@ -1332,14 +1372,17 @@ html:has(.clay-studio--fixed) body {
 }
 
 .clay-studio .learn-inline-toc-link {
+  display: block;
+  width: 100%;
   border: none;
   background: none;
   padding: 0;
+  text-align: left;
   font-size: 0.8125rem;
-  line-height: 1.55;
+  line-height: 1.45;
   color: var(--studio-text-muted);
   text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--studio-text-muted) 40%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--studio-text-muted) 35%, transparent);
   text-underline-offset: 3px;
   cursor: pointer;
   transition: color 0.15s ease;
@@ -1350,29 +1393,37 @@ html:has(.clay-studio--fixed) body {
   text-decoration-color: currentColor;
 }
 
-.clay-studio .learn-lesson-intro {
-  margin-top: 0.75rem;
+.clay-studio .learn-lesson-hero {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  margin-inline: auto;
 }
 
-@media (min-width: 520px) {
-  .clay-studio .learn-lesson-intro--with-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(160px, 260px);
-    gap: 1.75rem;
-    align-items: start;
+@media (min-width: 640px) {
+  .clay-studio .learn-lesson-hero-row--with-hero .learn-lesson-hero {
+    justify-content: flex-end;
+    margin-inline: 0;
+    align-self: start;
   }
 }
 
-.clay-studio .learn-lesson-hero {
-  display: flex;
-  justify-content: flex-start;
-  margin-left: -0.75rem;
-}
-
 .clay-studio .learn-lesson-hero-image {
-  width: min(240px, 100%);
+  width: min(220px, 100%);
   height: auto;
   object-fit: contain;
+}
+
+@media (min-width: 640px) {
+  .clay-studio .learn-lesson-hero-image {
+    width: min(200px, 28vw);
+  }
+}
+
+@media (min-width: 1280px) {
+  .clay-studio .learn-lesson-hero-image {
+    width: min(240px, 18vw);
+  }
 }
 
 .clay-studio .roadmap-panel-back {
@@ -2198,13 +2249,39 @@ html:has(.clay-studio--fixed) body {
 }
 
 @media (max-width: 1023px) {
+  html:has(.clay-studio--fixed),
+  html:has(.clay-studio--fixed) body {
+    overflow: auto;
+    height: auto;
+  }
+
+  .clay-studio.clay-studio--fixed {
+    height: auto;
+    max-height: none;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .clay-studio.clay-studio--fixed .roadmap-page {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .clay-studio.clay-studio--fixed .studio-main--roadmap {
+    overflow: visible;
+  }
+
   .clay-studio .roadmap-body {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) auto;
+    overflow: visible;
   }
 
   .clay-studio .roadmap-aside {
-    overflow: hidden;
+    max-height: min(44vh, 420px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .clay-studio .concept-tab-bar {
@@ -2213,6 +2290,29 @@ html:has(.clay-studio--fixed) body {
     overscroll-behavior-x: contain;
     padding-bottom: 0.25rem;
     scrollbar-width: thin;
+  }
+}
+
+@media (max-width: 640px) {
+  .clay-studio .learn-lesson-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .clay-studio .learn-nav-link--next {
+    text-align: left;
+  }
+
+  .clay-studio .roadmap-concept-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clay-studio .roadmap-overview--spine {
+    padding-left: 2rem;
+  }
+
+  .clay-studio .roadmap-lesson-top-nav {
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 }
 

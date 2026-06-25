@@ -4,7 +4,19 @@ export type LearnDiagramId =
   | "encapsulation-vault"
   | "encapsulation-object"
   | "encapsulation-bad-vs-good"
-  | "encapsulation-atm";
+  | "encapsulation-atm"
+  | "abstraction-interface"
+  | "abstraction-swap"
+  | "inheritance-hierarchy"
+  | "inheritance-vs-composition"
+  | "polymorphism-dispatch"
+  | "polymorphism-switch"
+  | "srp-god-class"
+  | "srp-split"
+  | "ocp-core-extends"
+  | "ocp-switch-vs-extend"
+  | "lsp-broken-substitute"
+  | "lsp-honest-types";
 
 export type LearnQuizQuestion = {
   question: string;

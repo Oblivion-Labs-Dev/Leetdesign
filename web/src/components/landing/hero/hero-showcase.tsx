@@ -199,7 +199,7 @@ function RuntimeSlide({ reducedMotion }: { reducedMotion: boolean }) {
         </span>
       </div>
 
-      <div className="grid flex-1 grid-cols-5 content-center gap-2">
+      <div className="grid flex-1 grid-cols-2 content-center gap-2 sm:grid-cols-3 lg:grid-cols-5">
         <RuntimeNode label="Client" tone="#8CB4D9" />
         <RuntimeNode label="Gateway" tone="#7BA892" />
         <RuntimeNode label="Auth" tone="#9B8DC4" />

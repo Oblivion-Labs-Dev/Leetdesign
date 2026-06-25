@@ -5,7 +5,7 @@ export const LEARN_TRACKS: LearnTrack[] = [
     slug: "oop",
     title: "OOP fundamentals",
     summary:
-      "Encapsulation, inheritance, and polymorphism — the building blocks every system design interview assumes you know.",
+      "The four mechanisms your language gives you to implement clean design — focused on what actually shows up in LLD interviews.",
     tag: "Foundations",
     lessonSlugs: [
       "encapsulation",
@@ -17,7 +17,8 @@ export const LEARN_TRACKS: LearnTrack[] = [
   {
     slug: "solid",
     title: "SOLID principles",
-    summary: "Five principles for maintainable object-oriented design.",
+    summary:
+      "Five principles for class design in LLD interviews — apply when the problem calls for them, not as ceremony.",
     tag: "Foundations",
     lessonSlugs: [
       "single-responsibility",
