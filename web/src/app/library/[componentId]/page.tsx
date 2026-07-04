@@ -37,7 +37,7 @@ export default async function ComponentPage({
         <div className="space-y-4">
           <Card>
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-violet-500/30 to-cyan-500/30 text-violet-200">
+              <div className="clay-icon-tile grid h-12 w-12 place-items-center rounded-xl">
                 <Icon className="h-6 w-6" />
               </div>
               <div>

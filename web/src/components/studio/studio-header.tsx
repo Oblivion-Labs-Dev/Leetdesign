@@ -57,7 +57,7 @@ export function StudioHeader({ firstName }: { firstName: string }) {
           <Settings className="h-4 w-4" />
         </Link>
         <div
-          className="grid h-9 w-9 place-items-center rounded-full bg-[var(--studio-purple)] text-sm font-bold text-white"
+          className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-[#84a3c2] to-[var(--clay-primary)] text-sm font-bold text-white"
           aria-label="Profile"
         >
           {firstName.charAt(0).toUpperCase()}

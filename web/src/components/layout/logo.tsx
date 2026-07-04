@@ -15,18 +15,26 @@ export function LeetdesignLogo({
   className,
   withWordmark = true,
   variant = "app",
+  compact = false,
 }: {
   className?: string;
   withWordmark?: boolean;
   variant?: "app" | "clay";
+  compact?: boolean;
 }) {
   const isClay = variant === "clay";
+  const showWordmark = withWordmark && !compact;
 
   return (
-    <Link href="/" className={cn("flex items-center gap-3", className)}>
+    <Link
+      href="/"
+      className={cn("flex items-center gap-3", compact && "justify-center gap-0", className)}
+      title="Leetdesign"
+    >
       <div
         className={cn(
-          "grid h-11 w-11 place-items-center rounded-2xl border",
+          "grid place-items-center rounded-2xl border",
+          compact ? "h-9 w-9 rounded-xl" : "h-11 w-11",
           isClay
             ? "border-[var(--clay-border-strong)]"
             : "border-[var(--border-strong)]",
@@ -46,9 +54,9 @@ export function LeetdesignLogo({
               }
         }
       >
-        <LogoMark />
+        <LogoMark className={compact ? "h-5 w-5" : undefined} />
       </div>
-      {withWordmark ? (
+      {showWordmark ? (
         <div className="leading-tight">
           <div
             className={cn(

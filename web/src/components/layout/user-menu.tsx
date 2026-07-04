@@ -53,7 +53,7 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
             className="rounded-full border border-white/10 bg-[var(--surface)]"
           />
         ) : (
-          <div className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-violet-500/40 to-cyan-500/40 text-[11px] font-semibold uppercase">
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-[color-mix(in_srgb,var(--clay-primary)_45%,transparent)] to-[color-mix(in_srgb,var(--clay-sky)_45%,transparent)] text-[11px] font-semibold uppercase">
             {user.alias.slice(0, 2)}
           </div>
         )}
@@ -84,7 +84,7 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
                 className="rounded-full border border-[var(--border)]"
               />
             ) : (
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-500/50 to-cyan-500/50 text-xs font-semibold uppercase">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[color-mix(in_srgb,var(--clay-primary)_50%,transparent)] to-[color-mix(in_srgb,var(--clay-sky)_50%,transparent)] text-xs font-semibold uppercase">
                 {user.alias.slice(0, 2)}
               </div>
             )}
@@ -95,7 +95,7 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
               <div className="truncate text-[11px] text-[var(--foreground-subtle)]">
                 {user.workEmail}
               </div>
-              <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-200">
+              <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-[var(--tone-brand-border)] bg-[var(--tone-brand-bg)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--tone-brand-text)]">
                 <Shield className="h-3 w-3" /> {user.badgeShortTitle}
               </div>
             </div>

@@ -29,6 +29,10 @@ export const metadata: Metadata = {
   title: "Leetdesign — Learn system design by building",
   description:
     "A hands-on studio for developers. Compose services, wire data flows, and build architectural thinking through interactive design.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 // Inline script that runs *before* React hydrates so we don't flash the wrong

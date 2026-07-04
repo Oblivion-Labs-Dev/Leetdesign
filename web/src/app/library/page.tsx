@@ -29,13 +29,13 @@ export default async function LibraryPage() {
             <Card
               className={`h-full ${
                 unlocked
-                  ? "hover:border-violet-500/40"
+                  ? "clay-hover-card"
                   : "cursor-not-allowed border-[var(--border)] bg-[var(--surface-2)]/40 opacity-60"
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500/30 to-cyan-500/30 text-violet-200">
+                  <div className="clay-icon-tile grid h-10 w-10 place-items-center rounded-xl">
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>

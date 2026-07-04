@@ -11,10 +11,10 @@ export function Progress({ value, className, tone = "brand" }: ProgressProps) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
   const color =
     tone === "accent"
-      ? "from-cyan-400 to-sky-500"
+      ? "from-[var(--clay-sky)] to-[var(--clay-primary)]"
       : tone === "success"
-        ? "from-emerald-400 to-emerald-500"
-        : "from-violet-400 to-fuchsia-500";
+        ? "from-[var(--clay-mint)] to-[var(--clay-accent)]"
+        : "from-[var(--clay-primary)] to-[var(--clay-lilac)]";
   return (
     <div
       className={cn(

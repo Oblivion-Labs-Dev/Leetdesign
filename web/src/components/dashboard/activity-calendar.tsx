@@ -11,10 +11,10 @@ function dayKey(d: Date): string {
 
 function intensity(count: number): string {
   if (count <= 0) return "bg-[var(--surface-2)] border border-[var(--border)]";
-  if (count === 1) return "bg-violet-500/30";
-  if (count === 2) return "bg-violet-500/55";
-  if (count === 3) return "bg-violet-500/75";
-  return "bg-gradient-to-br from-violet-500 to-cyan-400";
+  if (count === 1) return "bg-[color-mix(in_srgb,var(--clay-primary)_30%,transparent)]";
+  if (count === 2) return "bg-[color-mix(in_srgb,var(--clay-primary)_55%,transparent)]";
+  if (count === 3) return "bg-[color-mix(in_srgb,var(--clay-primary)_75%,transparent)]";
+  return "clay-bar-fill";
 }
 
 export function ActivityCalendar({
