@@ -64,9 +64,13 @@ interface Geom {
   cardPos: { top: number; left: number };
 }
 
-const CARD_W = 380;
 const CARD_H = 220;
 const PADDING = 12;
+
+function getCardWidth() {
+  if (typeof window === "undefined") return 380;
+  return Math.min(380, window.innerWidth - PADDING * 2);
+}
 
 /**
  * True spotlight tour: dim everything OUTSIDE the highlighted element using a
@@ -195,7 +199,7 @@ export function DashboardTourOverlay({ enabled }: { enabled: boolean }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          className="surface fixed z-[91] w-[380px] border border-[var(--tone-brand-border)] p-5 shadow-2xl"
+          className="surface fixed z-[91] w-[min(380px,calc(100vw-24px))] max-w-[calc(100vw-24px)] border border-[var(--tone-brand-border)] p-4 shadow-2xl sm:p-5"
           style={
             geom
               ? { top: geom.cardPos.top, left: geom.cardPos.left }
@@ -262,26 +266,24 @@ export function DashboardTourOverlay({ enabled }: { enabled: boolean }) {
 function pickCardPosition(r: DOMRect): { top: number; left: number } {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const cardW = getCardWidth();
   const spaceRight = vw - r.right;
   const spaceLeft = r.left;
   const spaceBelow = vh - r.bottom;
 
-  // Default: below the element, left-aligned to it.
   let top = r.bottom + PADDING;
-  let left = Math.min(vw - CARD_W - PADDING, Math.max(PADDING, r.left));
+  let left = Math.min(vw - cardW - PADDING, Math.max(PADDING, r.left));
 
-  // If not enough room below, try to the side or above.
   if (spaceBelow < CARD_H + PADDING) {
-    if (spaceRight > CARD_W + PADDING) {
+    if (spaceRight > cardW + PADDING) {
       top = Math.max(PADDING, Math.min(vh - CARD_H - PADDING, r.top));
       left = r.right + PADDING;
-    } else if (spaceLeft > CARD_W + PADDING) {
+    } else if (spaceLeft > cardW + PADDING) {
       top = Math.max(PADDING, Math.min(vh - CARD_H - PADDING, r.top));
-      left = r.left - CARD_W - PADDING;
+      left = r.left - cardW - PADDING;
     } else {
-      // Push above.
       top = Math.max(PADDING, r.top - CARD_H - PADDING);
-      left = Math.min(vw - CARD_W - PADDING, Math.max(PADDING, r.left));
+      left = Math.min(vw - cardW - PADDING, Math.max(PADDING, r.left));
     }
   }
 

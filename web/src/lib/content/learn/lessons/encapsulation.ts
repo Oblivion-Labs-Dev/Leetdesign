@@ -10,16 +10,16 @@ export const encapsulationLesson: LearnLesson = {
   difficulty: "beginner",
   tableOfContents: [
     { id: "what-is-encapsulation", label: "What is encapsulation?" },
-    { id: "public-vs-private", label: "Public vs private" },
-    { id: "bank-account-example", label: "Example: BankAccount" },
-    { id: "getters-and-setters", label: "Getters and setters" },
+    { id: "why-interviews-care", label: "Why interviewers care" },
+    { id: "library-example", label: "Example: library catalog" },
+    { id: "defensive-copies", label: "Returning collections safely" },
     { id: "common-mistakes", label: "Common mistakes" },
     { id: "quiz", label: "Quiz" },
   ],
   objectives: [
-    "Explain encapsulation in one sentence",
-    "Use public and private to control access",
-    "Protect fields with methods that enforce rules",
+    "Define encapsulation and explain why it improves predictability",
+    "Spot public fields and leaky collection returns in a class design",
+    "Route state changes through methods that enforce invariants",
   ],
   blocks: [
     {
@@ -30,7 +30,11 @@ export const encapsulationLesson: LearnLesson = {
     },
     {
       type: "paragraph",
-      text: "Encapsulation keeps an object's data private and exposes only the methods other code needs. Callers use your methods — they don't edit your fields directly.",
+      text: "Encapsulation keeps an object's data private and lets the object control how that data is used. Other code interacts through methods — not by reaching in and changing fields directly.",
+    },
+    {
+      type: "paragraph",
+      text: "The payoff is predictability. When your BankAccount owns its balance and only changes it through deposit() and withdraw(), you can enforce rules in one place — no negative balances, log every transaction, trigger fraud checks. If balance were public, nothing guarantees those rules run.",
     },
     {
       type: "diagram",
@@ -42,12 +46,20 @@ export const encapsulationLesson: LearnLesson = {
     {
       type: "heading",
       level: 2,
-      id: "public-vs-private",
-      text: "Public vs private",
+      id: "why-interviews-care",
+      text: "Why interviewers care",
     },
     {
       type: "paragraph",
-      text: "public — other code can call it. private — only code inside the same class can access it. Default fields to private; expose behavior through public methods.",
+      text: "In LLD interviews, encapsulation is a basic hygiene check. Do your classes expose fields directly, or do they provide methods? Do you return references to mutable internal collections that callers can still modify, or do you return copies or read-only views?",
+    },
+    {
+      type: "list",
+      items: [
+        "Fields should default to private — expose behavior, not raw state",
+        "Business rules belong inside the class, not scattered across callers",
+        "If you need to return a collection, return a copy or an unmodifiable view",
+      ],
     },
     {
       type: "diagram",
@@ -59,84 +71,135 @@ export const encapsulationLesson: LearnLesson = {
     {
       type: "heading",
       level: 2,
-      id: "bank-account-example",
-      text: "Example: BankAccount",
+      id: "library-example",
+      text: "Example: library catalog",
+    },
+    {
+      type: "heading",
+      level: 3,
+      text: "Without encapsulation",
     },
     {
       type: "paragraph",
-      text: "A public balance field lets any file set invalid values — no checks, no logging, one bad line breaks the account.",
+      text: "A public books array lets any caller remove items, add duplicates, or mark a book as available without going through borrow rules.",
     },
     {
       type: "code",
       language: "typescript",
-      caption: "Public balance — any code can corrupt state",
-      code: `class BankAccount {
-  balance: number = 0;  // public — risky
+      caption: "Public catalog — any code can corrupt inventory",
+      code: `class LibraryCatalog {
+  books: Book[] = [];
 }
 
-const account = new BankAccount();
-account.balance = -100;`,
+class Book {
+  constructor(public title: string, public available: boolean) {}
+}
+
+const catalog = new LibraryCatalog();
+catalog.books.push(new Book("Design Patterns", true));
+catalog.books[0].available = false; // no borrow record, no due date`,
     },
     {
       type: "paragraph",
-      text: "Make balance private and route changes through methods that validate input.",
+      text: "Why this fails: checkout logic, hold limits, and audit trails cannot be enforced. One screen can mark a reserved book as available while another still thinks it is on loan.",
+    },
+    {
+      type: "heading",
+      level: 3,
+      text: "With encapsulation",
+    },
+    {
+      type: "paragraph",
+      text: "Keep the catalog private. Expose borrow() and returnBook() so every state change runs the same checks.",
     },
     {
       type: "code",
       language: "typescript",
-      caption: "Private balance — rules live in withdraw()",
-      code: `class BankAccount {
-  private balance: number;
+      caption: "Private catalog — rules live in borrow()",
+      code: `class LibraryCatalog {
+  private books: Book[] = [];
 
-  constructor(startingAmount: number) {
-    if (startingAmount < 0) throw new Error("Negative balance");
-    this.balance = startingAmount;
+  addBook(book: Book): void {
+    this.books.push(book);
   }
 
-  withdraw(amount: number): void {
-    if (amount <= 0) throw new Error("Must be positive");
-    if (amount > this.balance) throw new Error("Insufficient funds");
-    this.balance -= amount;
+  borrow(title: string): Book | null {
+    const book = this.books.find((b) => b.title === title && b.available);
+    if (!book) return null;
+    book.available = false;
+    return book;
   }
 
-  getBalance(): number {
-    return this.balance;
+  returnBook(title: string): void {
+    const book = this.books.find((b) => b.title === title);
+    if (book) book.available = true;
   }
 }`,
     },
     {
+      type: "paragraph",
+      text: "What improves: callers cannot skip validation. Every borrow runs the same lookup and availability check. The class owns its invariants.",
+    },
+    {
       type: "diagram",
       id: "encapsulation-bad-vs-good",
-      caption: "Left: anyone edits balance. Right: changes go through withdraw().",
+      caption: "Left: anyone edits the list. Right: changes go through borrow().",
     },
 
     { type: "divider" },
     {
       type: "heading",
       level: 2,
-      id: "getters-and-setters",
-      text: "Getters and setters",
+      id: "defensive-copies",
+      text: "Returning collections safely",
+    },
+    {
+      type: "heading",
+      level: 3,
+      text: "Leaking internal state",
     },
     {
       type: "paragraph",
-      text: "Use getters and setters when reads or writes need validation. When there is real logic, prefer a named method — deposit(500) over setBalance(500).",
+      text: "Even with a private array, returning the array directly still lets callers mutate it from outside.",
     },
     {
       type: "code",
       language: "typescript",
-      caption: "Setter that rejects invalid input",
-      code: `class UserProfile {
-  private age: number = 0;
+      caption: "Getter returns the live internal list",
+      code: `class LibraryCatalog {
+  private books: Book[] = [];
 
-  setAge(value: number): void {
-    if (value < 0 || value > 150) throw new Error("Invalid age");
-    this.age = value;
-  }
-
-  getAge(): number {
-    return this.age;
+  getBooks(): Book[] {
+    return this.books; // caller can .push() or .splice()
   }
 }`,
+    },
+    {
+      type: "paragraph",
+      text: "Why this fails: encapsulation looks correct on paper, but external code still changes inventory without borrow().",
+    },
+    {
+      type: "heading",
+      level: 3,
+      text: "Return a copy or a safe view",
+    },
+    {
+      type: "code",
+      language: "typescript",
+      caption: "Snapshot — callers cannot mutate the private list",
+      code: `class LibraryCatalog {
+  private books: Book[] = [];
+
+  getAvailableTitles(): string[] {
+    return this.books
+      .filter((b) => b.available)
+      .map((b) => b.title);
+  }
+}`,
+    },
+    {
+      type: "paragraph",
+      text: "What improves: callers get the data they need without a handle on mutable internals. If you must return objects, return copies or read-only interfaces.",
     },
 
     {
@@ -148,9 +211,9 @@ account.balance = -100;`,
     {
       type: "list",
       items: [
-        "Leaving fields public for speed — bugs spread when many files touch the same data",
-        "Getters and setters with no validation — extra code, no protection",
-        "Returning a private array directly — callers can still mutate it with .push(); return a copy instead",
+        "Public fields for speed — bugs spread when many classes touch the same data",
+        "Getters with no validation — extra boilerplate, no protection",
+        "Returning private arrays or maps directly — callers mutate them with .push() or .delete()",
       ],
     },
 
@@ -173,16 +236,16 @@ account.balance = -100;`,
             "Encapsulation limits direct access to fields. Other code uses your methods.",
         },
         {
-          question: "What does private mean on a field?",
+          question: "Why do interviewers care about encapsulation?",
           options: [
-            "Only code inside the same class can access it",
-            "The field is encrypted on disk",
-            "The field can never change",
-            "The field is hidden from the compiler",
+            "It makes compiled code run on fewer CPU cores",
+            "It shows whether a class protects its invariants or exposes raw state",
+            "It replaces the need for interfaces",
+            "It only applies to frontend components",
           ],
-          correctIndex: 0,
+          correctIndex: 1,
           explanation:
-            "private limits access to the class body. External code must use public methods.",
+            "Public fields and leaky getters are a common LLD red flag.",
         },
         {
           question: "Why is a public balance field risky?",
@@ -197,30 +260,30 @@ account.balance = -100;`,
             "Public fields let every caller skip validation.",
         },
         {
-          question: "Which is the better way to take $50 from an account?",
+          question: "What is wrong with return this.books from a getter?",
           options: [
-            "account.balance = account.balance - 50",
-            "account.withdraw(50)",
-            "account.setBalance(account.balance - 50) with no checks",
-            "A shared global variable for all accounts",
+            "Arrays cannot be return types in TypeScript",
+            "Callers receive a reference and can mutate the private list",
+            "It forces the method to be async",
+            "It prevents the class from having other methods",
           ],
           correctIndex: 1,
           explanation:
-            "withdraw(50) runs validation and keeps rules in one place.",
+            "Return a copy, a snapshot, or data shaped for the caller — not the live collection.",
         },
       ],
     },
   ],
   keyTakeaways: [
-    "Keep fields private; expose behavior through public methods.",
-    "Public fields let bugs spread — validation belongs inside the class.",
-    "Prefer named methods (deposit, withdraw) when there is business logic.",
+    "Hide state, expose behavior — keep fields private and route changes through methods.",
+    "Rules belong inside the class so every caller gets the same guarantees.",
+    "Return copies or safe views when exposing collection data.",
   ],
   panelSummary:
-    "Encapsulation bundles data and methods in one unit and restricts direct access to internal state.",
+    "Encapsulation bundles data and behavior in one unit and restricts direct access to internal state.",
   panelKeyPoints: [
     "Protects data from unintended external changes",
     "Hides implementation behind public methods",
-    "Makes code easier to test and change",
+    "Basic hygiene check in LLD interviews",
   ],
 };

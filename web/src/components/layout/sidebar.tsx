@@ -2,34 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  FolderKanban,
-  Sparkles,
-  ListChecks,
-  BookOpenText,
-  Library,
-} from "lucide-react";
 import { LeetdesignLogo } from "./logo";
 import { cn } from "@/lib/utils";
+import { APP_NAV_ITEMS, isAppNavActive } from "./app-nav-items";
 
 const SECTIONS = [
-  {
-    label: "Workspace",
-    items: [
-      { href: "/dashboard", label: "Studio", icon: LayoutDashboard },
-      { href: "/projects", label: "Projects", icon: FolderKanban },
-      { href: "/practice", label: "Practice", icon: Sparkles },
-      { href: "/tasks", label: "Taskboard", icon: ListChecks },
-    ],
-  },
-  {
-    label: "Knowledge",
-    items: [
-      { href: "/library", label: "Component Library", icon: Library },
-      { href: "/brushup", label: "Brush-up", icon: BookOpenText },
-    ],
-  },
+  { label: "Workspace", items: APP_NAV_ITEMS.slice(0, 4) },
+  { label: "Knowledge", items: APP_NAV_ITEMS.slice(4) },
 ];
 
 export function Sidebar() {
@@ -47,22 +26,13 @@ export function Sidebar() {
             </div>
             <ul className="space-y-1">
               {sec.items.map((item) => {
-                const active =
-                  pathname === item.href || pathname.startsWith(item.href + "/");
+                const active = isAppNavActive(pathname, item.href);
                 const Icon = item.icon;
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      data-tour={
-                        item.href === "/projects"
-                          ? "nav-projects"
-                          : item.href === "/practice"
-                            ? "nav-practice"
-                            : item.href === "/dashboard"
-                              ? "nav-dashboard"
-                              : undefined
-                      }
+                      data-tour={item.tour}
                       className={cn(
                         "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
                         active

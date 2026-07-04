@@ -32,11 +32,13 @@ export function BrushupExperience({
   activeLesson,
   lessonCompleted = false,
   heroImageSrc,
+  lessonHeroImages = {},
 }: {
   progress: LearnRoadmapProgress;
   activeLesson?: LearnLesson;
   lessonCompleted?: boolean;
   heroImageSrc?: string;
+  lessonHeroImages?: Record<string, string>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -163,8 +165,8 @@ export function BrushupExperience({
 
   return (
     <div className="roadmap-page">
-      <div className="roadmap-body">
-        <div className="roadmap-main">
+      <div className={`roadmap-body ${isReading ? "roadmap-body--reading" : ""}`}>
+        <div className={`roadmap-main ${isReading ? "roadmap-main--reading" : ""}`}>
           <RoadmapScrollCanvas
             scrollRef={scrollRef}
             moduleSpy={!isReading}
@@ -174,6 +176,7 @@ export function BrushupExperience({
               <div className="roadmap-content-pane" key={activeLessonContent.slug}>
                 <LessonTemplate
                   lesson={activeLessonContent}
+                  heroImageSrc={lessonHeroImages[activeLessonContent.slug]}
                   alreadyCompleted={lessonCompletedNow}
                   embedded
                   inlineNav

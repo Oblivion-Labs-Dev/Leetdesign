@@ -193,7 +193,7 @@ export function HeroStudioDemo() {
         )}
       </div>
 
-      <div className="grid grid-cols-[114px_1fr]">
+      <div className="grid grid-cols-1 sm:grid-cols-[114px_1fr]">
         <HeroInventory items={INVENTORY_ITEMS} isDragging={showDragGhost} />
 
         <div className="flex flex-col bg-[var(--clay-canvas-a)]">

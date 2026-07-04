@@ -3,13 +3,11 @@ import { encapsulationLesson } from "./lessons/encapsulation";
 import { abstractionLesson } from "./lessons/abstraction";
 import { inheritanceLesson } from "./lessons/inheritance";
 import { polymorphismLesson } from "./lessons/polymorphism";
-import {
-  dipLesson,
-  ispLesson,
-  lspLesson,
-  ocpLesson,
-  srpLesson,
-} from "./lessons/solid";
+import { srpLesson } from "./lessons/single-responsibility";
+import { ocpLesson } from "./lessons/open-closed";
+import { lspLesson } from "./lessons/liskov-substitution";
+import { ispLesson } from "./lessons/interface-segregation";
+import { dipLesson } from "./lessons/dependency-inversion";
 import { getTrack, LEARN_TRACKS } from "./tracks";
 
 const LESSON_LIST: LearnLesson[] = [
@@ -30,6 +28,10 @@ const LESSONS: Record<string, LearnLesson> = Object.fromEntries(
 
 export function getAllTracks() {
   return LEARN_TRACKS;
+}
+
+export function getAllLessons(): LearnLesson[] {
+  return LESSON_LIST;
 }
 
 export function getLesson(

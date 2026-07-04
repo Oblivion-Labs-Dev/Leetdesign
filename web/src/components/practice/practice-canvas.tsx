@@ -306,7 +306,7 @@ function PracticeCanvasInner({
   );
 
   return (
-    <div className="grid h-[640px] gap-3 lg:grid-cols-[220px_1fr]">
+    <div className="grid min-h-[420px] gap-3 lg:grid-cols-[220px_1fr] lg:h-[min(640px,75vh)]">
       <InventoryRail available={inventory} />
 
       <div

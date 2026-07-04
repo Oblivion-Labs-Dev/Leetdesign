@@ -16,12 +16,12 @@ export async function StudioPageShell({
 
   return (
     <StudioLayout fixedViewport={isRoadmap}>
-      <div className="studio-header-shell shrink-0 border-b border-[var(--studio-border)] px-5 pt-5 pb-4 lg:px-6">
+      <div className="studio-header-shell shrink-0 border-b border-[var(--studio-border)] px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4 lg:px-6">
         <StudioHeader firstName={firstName} />
       </div>
       <main
         className={cn(
-          "w-full flex-1 px-5 pb-5 pt-4 lg:px-6",
+          "w-full flex-1 px-4 pb-4 pt-3 sm:px-5 sm:pb-5 sm:pt-4 lg:px-6",
           isRoadmap && "studio-main--roadmap min-h-0 overflow-hidden",
         )}
       >

@@ -10,7 +10,7 @@ const INSIGHTS = [
   { q: "Cache-aside: what happens on a miss?", a: "Read cache → miss → read DB → write to cache. Next read is a hit." },
 ];
 
-const AVATAR_COLORS = ["#7c5cfa", "#22c55e", "#3b82f6", "#f59e0b"];
+const AVATAR_COLORS = ["var(--clay-primary)", "var(--clay-accent)", "var(--clay-sky)", "var(--clay-lilac)"];
 
 export function StudioDailyInsight() {
   const insight = useMemo(() => {

@@ -30,7 +30,8 @@ export const ROADMAP_STEP_DEFS: Pick<
     title: "OOP Foundations",
     trackSlug: "oop",
     conceptSlugs: ["encapsulation", "abstraction", "inheritance", "polymorphism"],
-    description: "Core object-oriented ideas every engineer should know.",
+    description:
+      "Encapsulation, abstraction, inheritance, and polymorphism — the OOP tools interviewers expect you to apply naturally.",
     estMinutes: 15,
   },
   {
@@ -44,7 +45,8 @@ export const ROADMAP_STEP_DEFS: Pick<
       "interface-segregation",
       "dependency-inversion",
     ],
-    description: "Write maintainable, flexible, and scalable code.",
+    description:
+      "SRP, OCP, LSP, ISP, and DIP — principles for designing classes and relationships in LLD interviews.",
     estMinutes: 20,
   },
   {
@@ -75,11 +77,11 @@ export const CONCEPT_CATALOG: Record<string, ConceptCatalogEntry> = {
     stepId: "oop",
     title: "Encapsulation",
     panelSummary:
-      "Encapsulation is the bundling of data and methods that operate on that data within a single unit, while restricting direct access to some of the object's components.",
+      "Encapsulation keeps data private and routes changes through methods — a basic hygiene check in LLD interviews.",
     panelKeyPoints: [
-      "Protects data from unintended interference",
-      "Hides implementation details from the outside world",
-      "Makes code more modular and easier to maintain",
+      "Protects data from unintended external changes",
+      "Hides implementation behind public methods",
+      "Return copies when exposing collections",
     ],
     hasLesson: true,
   },
@@ -103,11 +105,11 @@ export const CONCEPT_CATALOG: Record<string, ConceptCatalogEntry> = {
     stepId: "oop",
     title: "Inheritance",
     panelSummary:
-      "Inheritance lets a class acquire properties and behaviors of another class — reuse code while specializing behavior in subclasses.",
+      "Inheritance shares stable implementation across related types — default to composition when behavior varies.",
     panelKeyPoints: [
-      "Promotes code reuse across related types",
-      "Models is-a relationships clearly",
-      "Watch for deep hierarchies that hurt flexibility",
+      "Use when is-a holds and shared code is stable",
+      "Watch the fragile base class problem",
+      "Composition + interfaces fit most LLD problems",
     ],
     hasLesson: true,
   },

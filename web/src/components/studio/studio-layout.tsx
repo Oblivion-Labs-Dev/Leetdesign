@@ -1,11 +1,14 @@
 import { StudioSidebar } from "./studio-sidebar";
+import { StudioMobileNav } from "./studio-mobile-nav";
 
 export function StudioLayout({
   children,
   fixedViewport = false,
+  sidebarCollapsed = false,
 }: {
   children: React.ReactNode;
   fixedViewport?: boolean;
+  sidebarCollapsed?: boolean;
 }) {
   return (
     <div
@@ -18,9 +21,12 @@ export function StudioLayout({
             : "flex min-h-screen w-full"
         }
       >
-        <StudioSidebar />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
+        <StudioSidebar collapsed={sidebarCollapsed} />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+        </div>
       </div>
+      <StudioMobileNav />
     </div>
   );
 }

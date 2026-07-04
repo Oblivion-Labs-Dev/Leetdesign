@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Sidebar } from "./sidebar";
-import { TopBar } from "./topbar";
+import { StudioLayout } from "@/components/studio/studio-layout";
+import { AppPageHeader } from "./app-page-header";
 
 export async function AppShell({
   title,
@@ -12,12 +12,9 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative z-10 flex min-h-screen w-full flex-1">
-      <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <TopBar title={title} subtitle={subtitle} />
-        <main className="flex-1 px-6 py-6">{children}</main>
-      </div>
-    </div>
+    <StudioLayout>
+      <AppPageHeader title={title} subtitle={subtitle} />
+      <main className="flex-1 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">{children}</main>
+    </StudioLayout>
   );
 }

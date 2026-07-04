@@ -151,40 +151,80 @@ export function TaskboardClient({ tasks }: { tasks: TaskboardTask[] }) {
           })}
         </div>
       ) : (
-        <div className="surface overflow-hidden">
-          <div className="grid grid-cols-[1fr_140px_120px_100px] gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-[10px] uppercase tracking-wider text-[var(--foreground-subtle)]">
-            <div>Title</div>
-            <div>Project</div>
-            <div>Status</div>
-            <div className="text-right">Priority</div>
-          </div>
-          {filtered.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-[var(--foreground-muted)]">
-              No tasks match the current filters.
+        <>
+          <div className="surface hidden overflow-hidden md:block">
+            <div className="grid grid-cols-[1fr_140px_120px_100px] gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-[10px] uppercase tracking-wider text-[var(--foreground-subtle)]">
+              <div>Title</div>
+              <div>Project</div>
+              <div>Status</div>
+              <div className="text-right">Priority</div>
             </div>
-          ) : (
-            filtered.map((t) => (
-              <div
-                key={t.id}
-                className="grid grid-cols-[1fr_140px_120px_100px] gap-2 border-b border-[var(--border)] px-4 py-2.5 text-sm last:border-b-0 hover:bg-[var(--surface-2)]/50"
-              >
-                <div className="truncate font-medium">{t.title}</div>
-                <div className="truncate text-[var(--foreground-muted)]">
-                  {t.projectId
-                    ? (PROJECTS.find((p) => p.id === t.projectId)?.shortTitle ??
-                      t.projectId)
-                    : "General"}
-                </div>
-                <div className="text-[var(--foreground-muted)]">
-                  {COLUMNS.find((c) => c.id === t.status)?.title}
-                </div>
-                <div className="text-right">
-                  <Pill tone={PRIORITY_TONE[t.priority]}>{t.priority}</Pill>
-                </div>
+            {filtered.length === 0 ? (
+              <div className="px-4 py-6 text-center text-sm text-[var(--foreground-muted)]">
+                No tasks match the current filters.
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              filtered.map((t) => (
+                <div
+                  key={t.id}
+                  className="grid grid-cols-[1fr_140px_120px_100px] gap-2 border-b border-[var(--border)] px-4 py-2.5 text-sm last:border-b-0 hover:bg-[var(--surface-2)]/50"
+                >
+                  <div className="truncate font-medium">{t.title}</div>
+                  <div className="truncate text-[var(--foreground-muted)]">
+                    {t.projectId
+                      ? (PROJECTS.find((p) => p.id === t.projectId)?.shortTitle ??
+                        t.projectId)
+                      : "General"}
+                  </div>
+                  <div className="text-[var(--foreground-muted)]">
+                    {COLUMNS.find((c) => c.id === t.status)?.title}
+                  </div>
+                  <div className="text-right">
+                    <Pill tone={PRIORITY_TONE[t.priority]}>{t.priority}</Pill>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="space-y-2 md:hidden">
+            {filtered.length === 0 ? (
+              <div className="surface px-4 py-6 text-center text-sm text-[var(--foreground-muted)]">
+                No tasks match the current filters.
+              </div>
+            ) : (
+              filtered.map((t) => (
+                <Card key={t.id} className="p-3">
+                  <div className="text-sm font-medium leading-tight">{t.title}</div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--foreground-subtle)]">
+                        Project
+                      </div>
+                      <div className="mt-0.5 text-[var(--foreground-muted)]">
+                        {t.projectId
+                          ? (PROJECTS.find((p) => p.id === t.projectId)?.shortTitle ??
+                            t.projectId)
+                          : "General"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--foreground-subtle)]">
+                        Status
+                      </div>
+                      <div className="mt-0.5 text-[var(--foreground-muted)]">
+                        {COLUMNS.find((c) => c.id === t.status)?.title}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <Pill tone={PRIORITY_TONE[t.priority]}>{t.priority}</Pill>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </>
       )}
     </div>
   );
