@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   X,
-  Trash2,
   Server,
   TrendingUp,
   Cpu,
@@ -35,6 +34,24 @@ import {
 } from "@/lib/simulator/app-server-pool-overview";
 import type { RuntimeMetrics } from "@/lib/simulator/types";
 import { cn } from "@/lib/utils";
+import {
+  InspectorPanel,
+  InspectorHeader,
+  InspectorScrollBody,
+  InspectorSection,
+  InspectorSubCard,
+  InspectorEmptyState,
+  InspectorCollapsible,
+  InspectorMetricsScrollTable,
+  InspectorNameField,
+  InspectorRemoveFooter,
+  METRICS_TABLE_MIN_WIDTH,
+} from "./inspector-panel";
+import {
+  InspectorViewModeTabs,
+  InspectorBasicsPanel,
+  useInspectorViewModeForNode,
+} from "./inspector-basics-advanced";
 
 const QUEUE_BEHAVIOR_OPTIONS: { value: QueueFullBehavior; label: string }[] = [
   { value: "reject", label: "Reject new requests" },
@@ -47,6 +64,7 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
   const design = useDesignStore((s) => s.design);
   const clearSelection = useDesignStore((s) => s.clearSelection);
   const mergeNodeConfig = useDesignStore((s) => s.mergeNodeConfig);
+  const updateNodeConfig = useDesignStore((s) => s.updateNodeConfig);
   const updateNodeLabel = useDesignStore((s) => s.updateNodeLabel);
   const removeNode = useDesignStore((s) => s.removeNode);
   const selectEdge = useDesignStore((s) => s.selectEdge);
@@ -55,8 +73,13 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
   const metrics = useSimulationStore((s) =>
     selectedNodeId ? s.metrics[selectedNodeId] : undefined,
   );
-  const [showInstanceTable, setShowInstanceTable] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showInstances, setShowInstances] = useState(true);
+  const [showDebugMetrics, setShowDebugMetrics] = useState(false);
+  const { mode, setMode } = useInspectorViewModeForNode(selectedNodeId);
+
+  useEffect(() => {
+    setShowInstances(true);
+  }, [selectedNodeId]);
 
   if (!selectedNodeId || !design) return null;
   const node = design.nodes.find((n) => n.id === selectedNodeId);
@@ -148,10 +171,20 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
     );
   }, [showLive, metrics, configuredCount, trafficHealthyCount, perInstanceRps, cfg.maxConcurrentRequestsPerInstance]);
 
-  const tableVisible =
-    showInstanceTable ||
-    showAdvanced ||
-    (overview?.showInstanceTableDefault ?? false);
+  const displayInstanceRows = useMemo(() => {
+    if (showLive && instanceRows.length > 0) return instanceRows;
+    return Array.from({ length: cfg.instanceCount }, (_, i) => ({
+      index: i + 1,
+      incomingRps: 0,
+      activeRequests: 0,
+      maxSlots: cfg.maxConcurrentRequestsPerInstance,
+      utilizationPercent: 0,
+      p95LatencyMs: 0,
+      health: "healthy" as const,
+    }));
+  }, [showLive, instanceRows, cfg.instanceCount, cfg.maxConcurrentRequestsPerInstance]);
+
+  const hasInstances = cfg.instanceCount >= 1;
 
   const maxSlotsTotal = cfg.maxConcurrentRequestsPerInstance * configuredCount;
   const activeRequests = metrics?.activeRequests ?? metrics?.activeConnections ?? 0;
@@ -161,120 +194,164 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
   };
 
   return (
-    <div className={cn(
-      "flex h-full flex-col",
-      !embedded && "w-[300px] shrink-0 border-l border-[var(--clay-border)] bg-[var(--clay-surface)]/95 backdrop-blur-md lg:w-[320px]",
-    )}>
-      <div className="flex items-center justify-between border-b border-[var(--clay-border)] px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-500/10">
-            <Server className="h-4.5 w-4.5 text-indigo-500" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-[var(--clay-text)]">Application Server Pool</div>
-            <span className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-indigo-600">
-              Compute
-            </span>
-          </div>
-        </div>
-        <button type="button" onClick={clearSelection} className="grid h-7 w-7 place-items-center rounded-lg text-[var(--clay-text-subtle)] hover:bg-[var(--clay-surface-2)]">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+    <InspectorPanel
+      embedded={embedded}
+      footer={
+        <InspectorRemoveFooter
+          onRemove={() => { removeNode(node.id); clearSelection(); }}
+        />
+      }
+    >
+      <InspectorHeader
+        icon={Server}
+        iconClassName="bg-indigo-500/10 text-indigo-500"
+        title="Application Server Pool"
+        badge="Compute"
+        badgeClassName="border-indigo-500/20 bg-indigo-500/10 text-indigo-600"
+        onClose={clearSelection}
+      />
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="border-b border-[var(--clay-border)] px-4 py-3">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-            Component Name
-          </label>
-          <input
-            value={node.label}
-            onChange={(e) => updateNodeLabel(node.id, e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-3 py-1.5 text-sm focus:border-[var(--clay-primary)] focus:outline-none"
-          />
-        </div>
+      <InspectorScrollBody>
+        <InspectorNameField value={node.label} onChange={(v) => updateNodeLabel(node.id, v)} />
+        <InspectorViewModeTabs mode={mode} onChange={setMode} />
 
-        <div className="border-b border-[var(--clay-border)] px-4 py-3">
+        {mode === "basics" ? (
+          <>
+            <InspectorSection
+              icon={TrendingUp}
+              title="Live status"
+              subtitle={showLive ? "How the app server pool is doing right now." : "Start simulation to see metrics."}
+            >
+              {showLive && metrics ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <CoreMetric label="Traffic In" value={`${formatRps(metrics.currentRps)} RPS`} />
+                  <CoreMetric label="Healthy Instances" value={`${healthyCount} / ${cfg.instanceCount}`} />
+                  <CoreMetric label="Load" value={`${metrics.utilizationPercent}%`} />
+                  <CoreMetric label="Errors" value={`${(metrics.errorRate * 100).toFixed(1)}%`} />
+                </div>
+              ) : (
+                <InspectorEmptyState>Idle — no traffic yet.</InspectorEmptyState>
+              )}
+            </InspectorSection>
+
+            <InspectorBasicsPanel
+              node={node}
+              design={design}
+              metrics={metrics}
+              mergeNodeConfig={mergeNodeConfig}
+              updateNodeConfig={updateNodeConfig}
+              onSwitchAdvanced={() => setMode("advanced")}
+            >
+              <InspectorSection title="Simple scaling" subtitle="Most common fixes when the app server is overloaded.">
+                <Field
+                  label="Instance count"
+                  helper="More servers share incoming traffic."
+                  value={cfg.instanceCount}
+                  min={1}
+                  max={20}
+                  onChange={(v) => patch({ instanceCount: v })}
+                />
+                <Field
+                  label="Concurrent requests (per instance)"
+                  helper="How many requests each server handles at once."
+                  value={cfg.maxConcurrentRequestsPerInstance}
+                  min={10}
+                  max={1000}
+                  onChange={(v) => patch({ maxConcurrentRequestsPerInstance: v })}
+                />
+              </InspectorSection>
+            </InspectorBasicsPanel>
+          </>
+        ) : (
+          <>
+        <InspectorSection title="About This Pool">
           <p className="text-[11px] leading-relaxed text-[var(--clay-text-muted)]">
-            One box on the canvas = a <strong className="font-medium text-[var(--clay-text)]">group of {cfg.instanceCount} identical servers</strong>.
-            The load balancer sends traffic to the whole pool; work is split evenly across instances inside.
+            One canvas node = a <strong className="font-medium text-[var(--clay-text)]">group of {cfg.instanceCount} identical servers</strong>.
+            The load balancer sends traffic to the pool; work is split across instances inside.
           </p>
-        </div>
+        </InspectorSection>
 
-        <div className="border-b border-[var(--clay-border)] px-4 py-3">
-          <div className="mb-2 flex items-center gap-2">
-            <TrendingUp className="h-3.5 w-3.5 text-[var(--clay-text-muted)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-              Pool Overview
+        {showInstanceWarning && (
+          <div className="flex gap-2 rounded-xl border border-amber-400/30 bg-amber-500/8 px-3 py-2 text-[11px] text-amber-700">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Multiple instances are deployed, but incoming traffic is not currently distributed across them.
             </span>
           </div>
+        )}
+
+        <InspectorSection
+          icon={TrendingUp}
+          title="Pool Overview"
+          subtitle="Live traffic, capacity, and bottlenecks for the whole pool."
+        >
           {!showLive ? (
-            <div className="rounded-lg border border-dashed border-[var(--clay-border)] bg-[var(--clay-surface-2)]/50 px-3 py-4 text-center text-[11px] text-[var(--clay-text-muted)]">
+            <InspectorEmptyState>
               Start the simulation to see how traffic is split across instances.
-            </div>
+            </InspectorEmptyState>
           ) : overview && metrics ? (
             <>
               {(() => {
                 const statusStyle = operationalStatusStyles(overview.operationalStatus);
                 return (
-                  <div className={cn("mb-3 rounded-lg border px-3 py-2.5", statusStyle.border, statusStyle.bg)}>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-                      Status
-                    </div>
-                    <div className={cn("mt-0.5 text-sm font-semibold", statusStyle.title)}>
-                      {overview.statusTitle}
-                    </div>
-                    <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--clay-text-muted)]">
-                      {overview.statusExplanation}
-                    </p>
-                    {overview.slotsFullWaitingOnIo && (
-                      <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--clay-text-subtle)]">
-                        Slots are full while CPU stays low — requests are blocked on downstream I/O, not compute.
+                  <InspectorSubCard title="Status">
+                    <div className={cn("rounded-md border px-2.5 py-2", statusStyle.border, statusStyle.bg)}>
+                      <div className={cn("text-sm font-semibold", statusStyle.title)}>
+                        {overview.statusTitle}
+                      </div>
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--clay-text-muted)]">
+                        {overview.statusExplanation}
                       </p>
-                    )}
-                    {(overview.inspectNextNodeId || overview.inspectNextEdgeId) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (overview.inspectNextEdgeId) selectEdge(overview.inspectNextEdgeId);
-                          else if (overview.inspectNextNodeId) selectNode(overview.inspectNextNodeId);
-                        }}
-                        className="mt-2 text-[10px] font-medium text-[var(--clay-primary)] hover:underline"
-                      >
-                        → {overview.inspectNextLabel}
-                      </button>
-                    )}
-                  </div>
+                      {overview.slotsFullWaitingOnIo && (
+                        <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--clay-text-subtle)]">
+                          Slots are full while CPU stays low — requests are blocked on downstream I/O, not compute.
+                        </p>
+                      )}
+                      {(overview.inspectNextNodeId || overview.inspectNextEdgeId) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (overview.inspectNextEdgeId) selectEdge(overview.inspectNextEdgeId);
+                            else if (overview.inspectNextNodeId) selectNode(overview.inspectNextNodeId);
+                          }}
+                          className="mt-2 text-[10px] font-medium text-[var(--clay-primary)] hover:underline"
+                        >
+                          → {overview.inspectNextLabel}
+                        </button>
+                      )}
+                    </div>
+                  </InspectorSubCard>
                 );
               })()}
 
-              <div className="grid grid-cols-2 gap-2">
-                <CoreMetric label="Traffic In" value={`${formatRps(metrics.currentRps)} RPS`} />
-                <CoreMetric label="Healthy Instances" value={`${healthyCount} / ${cfg.instanceCount}`} title={INSTANCE_POOL_TOOLTIP} />
-                <CoreMetric label="Traffic Per Instance" value={`${formatRps(perInstanceRps, 1)} RPS`} />
-                <CoreMetric
-                  label="Derived Capacity"
-                  value={`${formatRps(Math.round(poolCapacityRps))} RPS total`}
-                  sub={`${formatRps(Math.round(capacityPerInstance))} RPS / instance`}
-                />
-                <CoreMetric label="Utilization" value={`${poolUtil}%`} warn={poolUtil >= 85} />
-                <CoreMetric label="Active Requests" value={`${Math.round(activeRequests)} / ${maxSlotsTotal}`} warn={activeRequests >= maxSlotsTotal * 0.9} />
-              </div>
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <SecondaryMetric label="Queue Depth" value={`${formatCount(metrics.queueDepth)} requests`} />
-                <SecondaryMetric label="P95 Response Time" value={formatDurationMs(metrics.p95LatencyMs)} />
-                <SecondaryMetric label="Error Rate" value={`${(metrics.errorRate * 100).toFixed(1)}%`} warn={metrics.errorRate > 0.02} />
-                <SecondaryMetric
-                  label="Primary Bottleneck"
-                  value={bottleneckDisplayLabel(overview.primaryBottleneck.kind, overview.primaryBottleneck.label)}
-                />
-              </div>
-
-              <div className="mt-3 rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-2">
-                <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-                  Request Time Breakdown
+              <InspectorSubCard title="Throughput">
+                <div className="grid grid-cols-2 gap-2">
+                  <CoreMetric label="Traffic In" value={`${formatRps(metrics.currentRps)} RPS`} />
+                  <CoreMetric label="Healthy Instances" value={`${healthyCount} / ${cfg.instanceCount}`} title={INSTANCE_POOL_TOOLTIP} />
+                  <CoreMetric label="Traffic Per Instance" value={`${formatRps(perInstanceRps, 1)} RPS`} />
+                  <CoreMetric
+                    label="Derived Capacity"
+                    value={`${formatRps(Math.round(poolCapacityRps))} RPS total`}
+                    sub={`${formatRps(Math.round(capacityPerInstance))} RPS / instance`}
+                  />
+                  <CoreMetric label="Utilization" value={`${poolUtil}%`} warn={poolUtil >= 85} />
+                  <CoreMetric label="Active Requests" value={`${Math.round(activeRequests)} / ${maxSlotsTotal}`} warn={activeRequests >= maxSlotsTotal * 0.9} />
                 </div>
+              </InspectorSubCard>
+
+              <InspectorSubCard title="Diagnostics">
+                <div className="grid grid-cols-2 gap-2">
+                  <SecondaryMetric label="Queue Depth" value={`${formatCount(metrics.queueDepth)} requests`} />
+                  <SecondaryMetric label="P95 Response Time" value={formatDurationMs(metrics.p95LatencyMs)} />
+                  <SecondaryMetric label="Error Rate" value={`${(metrics.errorRate * 100).toFixed(1)}%`} warn={metrics.errorRate > 0.02} />
+                  <SecondaryMetric
+                    label="Primary Bottleneck"
+                    value={bottleneckDisplayLabel(overview.primaryBottleneck.kind, overview.primaryBottleneck.label)}
+                  />
+                </div>
+              </InspectorSubCard>
+
+              <InspectorSubCard title="Request Time Breakdown">
                 <BreakdownRow label="Application Compute" value={formatDurationMs(overview.requestTime.applicationComputeMs)} />
                 <BreakdownRow label="Database Wait" value={formatDurationMs(overview.requestTime.databaseWaitMs)} highlight={overview.primaryBottleneck.kind === "database"} />
                 <BreakdownRow label="Cache Wait" value={formatDurationMs(overview.requestTime.cacheWaitMs)} highlight={overview.primaryBottleneck.kind === "cache"} />
@@ -286,64 +363,18 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
                     {formatDurationMs(overview.requestTime.totalEffectiveMs)}
                   </span>
                 </div>
-              </div>
-
-              {!tableVisible && (
-                <p className="mt-3 rounded-lg border border-[var(--clay-border)] bg-[var(--clay-bg-soft)] px-2.5 py-2 text-[10px] leading-relaxed text-[var(--clay-text-muted)]">
-                  {overview.evenDistributionMessage}
-                </p>
-              )}
-
-              {!overview.showInstanceTableDefault && (
-                <button
-                  type="button"
-                  onClick={() => setShowInstanceTable(!showInstanceTable)}
-                  className="mt-2 flex w-full items-center gap-1 text-[10px] font-medium text-[var(--clay-primary)]"
-                >
-                  {showInstanceTable ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                  Inspect individual instances
-                </button>
-              )}
-
-              {tableVisible && instanceRows.length > 0 && (
-                <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-[var(--clay-border)]">
-                  <table className="w-full text-[10px]">
-                    <thead className="sticky top-0 bg-[var(--clay-surface-2)] text-[var(--clay-text-subtle)]">
-                      <tr>
-                        <th className="px-2 py-1.5 text-left font-medium">Instance</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Incoming RPS</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Active Requests</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Utilization</th>
-                        <th className="px-2 py-1.5 text-right font-medium">P95 Latency</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Health</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {instanceRows.map((inst) => (
-                        <tr key={inst.index} className="border-t border-[var(--clay-border)]">
-                          <td className="px-2 py-1 text-[var(--clay-text-muted)]">#{inst.index}</td>
-                          <td className="px-2 py-1 text-right font-mono tabular-nums">{formatRps(inst.incomingRps, 1)}</td>
-                          <td className="px-2 py-1 text-right font-mono tabular-nums">{inst.activeRequests} / {inst.maxSlots}</td>
-                          <td className="px-2 py-1 text-right font-mono tabular-nums">{inst.utilizationPercent}%</td>
-                          <td className="px-2 py-1 text-right font-mono tabular-nums">{formatDurationMs(inst.p95LatencyMs)}</td>
-                          <td className="px-2 py-1 text-right text-[var(--clay-text-muted)]">{instanceHealthLabel(inst.health)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              </InspectorSubCard>
 
               <button
                 type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="mt-3 flex w-full items-center gap-1 text-[10px] font-medium text-[var(--clay-text-subtle)]"
+                onClick={() => setShowDebugMetrics(!showDebugMetrics)}
+                className="flex w-full items-center gap-1 text-[10px] font-medium text-[var(--clay-text-subtle)]"
               >
-                {showAdvanced ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                {showDebugMetrics ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 Advanced / debug metrics
               </button>
-              {showAdvanced && (
-                <div className="mt-2 grid grid-cols-2 gap-2">
+              {showDebugMetrics && (
+                <div className="grid grid-cols-2 gap-2">
                   <OutcomeTile label="Completed RPS" value={formatCount(metrics.completedRps ?? 0)} />
                   <OutcomeTile label="Avg Response Time" value={formatDurationMs(metrics.avgLatencyMs)} />
                   <OutcomeTile label="Effective request time" value={formatDurationMs(overview.requestTime.totalEffectiveMs)} />
@@ -352,18 +383,48 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
               )}
             </>
           ) : null}
-        </div>
+        </InspectorSection>
 
-        {showInstanceWarning && (
-          <div className="mx-4 mt-3 flex gap-2 rounded-lg border border-amber-400/30 bg-amber-500/8 px-3 py-2 text-[11px] text-amber-700">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
-              Multiple instances are deployed, but incoming traffic is not currently distributed across them.
-            </span>
-          </div>
+        {hasInstances && (
+          <InspectorCollapsible
+            title={`Individual Instances (${cfg.instanceCount})`}
+            meta={showLive ? `${healthyCount} healthy` : `${cfg.instanceCount} configured`}
+            open={showInstances}
+            onToggle={() => setShowInstances(!showInstances)}
+            hint={
+              showLive && overview?.evenDistributionMessage
+                ? overview.evenDistributionMessage
+                : !showLive
+                  ? `Start the simulation to populate live metrics. All ${cfg.instanceCount} instance${cfg.instanceCount === 1 ? "" : "s"} are listed below.`
+                  : undefined
+            }
+          >
+            <InspectorMetricsScrollTable
+              minWidth={METRICS_TABLE_MIN_WIDTH}
+              columns={[
+                { key: "instance", label: "Instance", align: "left" },
+                { key: "incoming", label: "Incoming RPS", align: "right" },
+                { key: "active", label: "Active Requests", align: "right" },
+                { key: "util", label: "Utilization", align: "right" },
+                { key: "p95", label: "P95 Latency", align: "right" },
+                { key: "health", label: "Health", align: "right" },
+              ]}
+              rows={displayInstanceRows.map((inst) => ({
+                key: String(inst.index),
+                cells: {
+                  instance: `#${inst.index}`,
+                  incoming: showLive ? formatRps(inst.incomingRps, 1) : "—",
+                  active: showLive ? `${inst.activeRequests} / ${inst.maxSlots}` : "—",
+                  util: showLive ? `${inst.utilizationPercent}%` : "—",
+                  p95: showLive ? formatDurationMs(inst.p95LatencyMs) : "—",
+                  health: showLive ? instanceHealthLabel(inst.health) : "—",
+                },
+              }))}
+            />
+          </InspectorCollapsible>
         )}
 
-        <Section icon={Cpu} title="Service Capacity" subtitle="What you configure — deployment limits and behavior">
+        <InspectorSection icon={Cpu} title="Service Capacity" subtitle="Deployment limits and queue behavior.">
           <Field
             label="Instance Count"
             helper="Replicas in this service pool. Traffic from the load balancer is divided across healthy instances."
@@ -412,30 +473,29 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
             <select
               value={cfg.queueFullBehavior}
               onChange={(e) => patch({ queueFullBehavior: e.target.value as QueueFullBehavior })}
-              className="mt-1 w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs focus:border-[var(--clay-primary)] focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface)] px-2.5 py-1.5 text-xs focus:border-[var(--clay-primary)] focus:outline-none"
             >
               {QUEUE_BEHAVIOR_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
+          <InspectorSubCard>
+            <div className="text-[10px] text-[var(--clay-text-muted)]">
+              <div className="font-medium text-[var(--clay-text)]">Estimated max throughput (idle preview)</div>
+              <p className="mt-1">
+                ≈ {formatCount(Math.round(capEstimate.totalCapacityRps))} RPS at current dependency latency
+              </p>
+              <p className="mt-0.5 text-[var(--clay-text-subtle)]">
+                {cfg.maxConcurrentRequestsPerInstance} slots × {capEstimate.effectiveInstanceCount} instance{capEstimate.effectiveInstanceCount === 1 ? "" : "s"} ÷ {Math.round(eff.effectiveRequestTimeMs)} ms per request
+              </p>
+            </div>
+          </InspectorSubCard>
+        </InspectorSection>
 
-          <div className="rounded-lg border border-[var(--clay-border)] bg-[var(--clay-bg-soft)] px-2.5 py-2 text-[10px] text-[var(--clay-text-muted)]">
-            <div className="font-medium text-[var(--clay-text)]">Estimated max throughput (idle preview)</div>
-            <p className="mt-1">
-              ≈ {formatCount(Math.round(capEstimate.totalCapacityRps))} RPS at current dependency latency
-            </p>
-            <p className="mt-0.5 text-[var(--clay-text-subtle)]">
-              {cfg.maxConcurrentRequestsPerInstance} slots × {capEstimate.effectiveInstanceCount} instance{capEstimate.effectiveInstanceCount === 1 ? "" : "s"} ÷ {Math.round(eff.effectiveRequestTimeMs)} ms per request
-            </p>
-          </div>
-        </Section>
-
-        <Section icon={Link2} title="Connected Dependencies" subtitle="Per-connection settings — click to edit">
+        <InspectorSection icon={Link2} title="Connected Dependencies" subtitle="Downstream services this pool calls during each request.">
           {dependencies.length === 0 ? (
-            <p className="text-[11px] text-[var(--clay-text-subtle)]">
-              Wire this server to a database, cache, queue, or external API. Call rates and sync behavior are configured on each connection, not here.
-            </p>
+            <InspectorEmptyState>No dependencies connected yet.</InspectorEmptyState>
           ) : (
             <ul className="space-y-1.5">
               {dependencies.map((dep) => (
@@ -443,7 +503,7 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
                   <button
                     type="button"
                     onClick={() => selectEdge(dep.edgeId)}
-                    className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-2 text-left transition-colors hover:border-[var(--clay-primary)]/40 hover:bg-[var(--clay-surface)]"
+                    className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface)] px-2.5 py-2 text-left transition-colors hover:border-[var(--clay-primary)]/40"
                   >
                     <div className="text-xs font-medium text-[var(--clay-text)]">{dep.targetLabel}</div>
                     <div className="mt-0.5 text-[10px] text-[var(--clay-text-muted)]">{dep.summary}</div>
@@ -452,51 +512,11 @@ export function ApplicationServerConfigInspector({ embedded = false }: { embedde
               ))}
             </ul>
           )}
-        </Section>
-
-        <div className="px-4 py-3">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-            What This Represents
-          </div>
-          <p className="text-xs leading-relaxed text-[var(--clay-text-muted)]">
-            Runs backend logic across a pool of service instances. Each canvas node represents a deployment group — not a single machine.
-          </p>
-        </div>
-      </div>
-
-      <div className="border-t border-[var(--clay-border)] px-4 py-3">
-        <button
-          type="button"
-          onClick={() => { removeNode(node.id); clearSelection(); }}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-300/30 bg-rose-500/8 px-3 py-2 text-xs font-medium text-rose-500 hover:bg-rose-500/15"
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Remove Component
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  subtitle,
-  children,
-}: {
-  icon: typeof Cpu;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="border-b border-[var(--clay-border)] px-4 py-3">
-      <div className="mb-1 flex items-center gap-2">
-        <Icon className="h-3.5 w-3.5 text-[var(--clay-primary)]" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">{title}</span>
-      </div>
-      {subtitle && <p className="mb-2 text-[10px] text-[var(--clay-text-subtle)]">{subtitle}</p>}
-      <div className="space-y-3">{children}</div>
-    </div>
+        </InspectorSection>
+          </>
+        )}
+      </InspectorScrollBody>
+    </InspectorPanel>
   );
 }
 

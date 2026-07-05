@@ -7,11 +7,15 @@ import {
   ChevronDown,
   ChevronRight,
   Users,
-  Activity,
   TrendingUp,
   Lightbulb,
   UtensilsCrossed,
 } from "lucide-react";
+import {
+  InspectorViewModeTabs,
+  InspectorBasicsPanel,
+  useInspectorViewModeForNode,
+} from "./inspector-basics-advanced";
 import { useDesignStore, useSimulationStore } from "@/lib/simulator/store";
 import { SIM_ICON_MAP } from "@/lib/simulator/component-registry";
 import {
@@ -67,6 +71,7 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
   const design = useDesignStore((s) => s.design);
   const clearSelection = useDesignStore((s) => s.clearSelection);
   const mergeNodeConfig = useDesignStore((s) => s.mergeNodeConfig);
+  const updateNodeConfig = useDesignStore((s) => s.updateNodeConfig);
   const updateNodeLabel = useDesignStore((s) => s.updateNodeLabel);
   const removeNode = useDesignStore((s) => s.removeNode);
   const metrics = useSimulationStore((s) =>
@@ -74,8 +79,8 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
   );
   const allMetrics = useSimulationStore((s) => s.metrics);
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showAnalogy, setShowAnalogy] = useState(false);
+  const { mode, setMode } = useInspectorViewModeForNode(selectedNodeId);
 
   if (!selectedNodeId || !design) return null;
   const node = design.nodes.find((n) => n.id === selectedNodeId);
@@ -149,8 +154,13 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
             onChange={(e) => updateNodeLabel(node.id, e.target.value)}
             className="mt-1 w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-3 py-1.5 text-sm text-[var(--clay-text)] focus:border-[var(--clay-primary)] focus:outline-none"
           />
+          <div className="mt-3">
+            <InspectorViewModeTabs mode={mode} onChange={setMode} />
+          </div>
         </div>
 
+        {mode === "basics" ? (
+          <>
         {metrics && (
           <div className="border-b border-[var(--clay-border)] px-4 py-3">
             <div className="mb-0.5 flex items-center gap-2">
@@ -192,6 +202,17 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
             <p className="mt-1.5 text-[11px] font-medium text-[var(--clay-text)]">{insight.suggestion}</p>
           </div>
         )}
+
+        <div className="border-b border-[var(--clay-border)] px-4 py-3">
+          <InspectorBasicsPanel
+            node={node}
+            design={design}
+            metrics={metrics}
+            mergeNodeConfig={mergeNodeConfig}
+            updateNodeConfig={updateNodeConfig}
+            onSwitchAdvanced={() => setMode("advanced")}
+          />
+        </div>
 
         <div className="border-b border-[var(--clay-border)] px-4 py-3">
           <div className="mb-3 flex items-center gap-2">
@@ -262,19 +283,6 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
             </div>
           </Field>
 
-          <Field label="Traffic Pattern" className="mt-3">
-            <select
-              value={cfg.trafficPattern}
-              onChange={(e) => patchConfig({ trafficPattern: e.target.value as TrafficPattern })}
-              className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs focus:border-[var(--clay-primary)] focus:outline-none"
-            >
-              {PATTERN_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <PatternFields cfg={cfg} patchConfig={patchConfig} baseRps={baseRps} />
-          </Field>
-
           <div className="mt-4 rounded-xl border border-[var(--clay-primary)]/25 bg-[color-mix(in_srgb,var(--clay-primary)_6%,var(--clay-surface))] p-3">
             <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--clay-primary)]">
               Resulting Traffic
@@ -291,69 +299,89 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
               <div className="mt-2 text-base font-semibold tabular-nums">
                 {formatRps(cfg.manualRpsOverride)} requests/sec
                 <span className="mt-1 block text-[10px] font-normal text-[var(--clay-text-subtle)]">
-                  Manual override active
+                  Manual override active — see Advanced tab
                 </span>
               </div>
             )}
           </div>
         </div>
-
-        <div className="border-b border-[var(--clay-border)]">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-[var(--clay-surface-2)]/50"
-          >
-            <Activity className="h-3.5 w-3.5 text-[var(--clay-text-subtle)]" />
+          </>
+        ) : (
+          <>
+        <div className="border-b border-[var(--clay-border)] px-4 py-3">
+          <div className="mb-3 flex items-center gap-2">
+            <Users className="h-3.5 w-3.5 text-[var(--clay-primary)]" />
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-              Advanced controls
+              Traffic Patterns & Behavior
             </span>
-            {showAdvanced ? <ChevronDown className="ml-auto h-3 w-3" /> : <ChevronRight className="ml-auto h-3 w-3" />}
-          </button>
-          {showAdvanced && (
-            <div className="space-y-3 px-4 pb-3">
-              <label className="flex items-center justify-between">
-                <span className="text-xs text-[var(--clay-text)]">Override calculated RPS</span>
-                <Toggle checked={cfg.rpsOverrideEnabled} onChange={(v) => patchConfig({ rpsOverrideEnabled: v })} />
-              </label>
-              {cfg.rpsOverrideEnabled && (
-                <>
-                  <input
-                    type="number"
-                    min={0}
-                    value={cfg.manualRpsOverride}
-                    onChange={(e) => patchConfig({ manualRpsOverride: Math.max(0, Number(e.target.value)) })}
-                    className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs tabular-nums"
-                  />
-                  <p className="text-[10px] text-[var(--clay-text-subtle)]">
-                    Direct RPS override can represent bots, background workers, integrations, or retry storms.
-                  </p>
-                </>
-              )}
+          </div>
 
-              <div>
-                <div className="mb-1 text-xs text-[var(--clay-text)]">Request Mix</div>
-                <MixRow label="Read" value={cfg.requestMix.reads} onChange={(v) => patchConfig({ requestMix: { ...cfg.requestMix, reads: v } })} />
-                <MixRow label="Write" value={cfg.requestMix.writes} onChange={(v) => patchConfig({ requestMix: { ...cfg.requestMix, writes: v } })} />
-                <MixRow label="Search" value={cfg.requestMix.searches} onChange={(v) => patchConfig({ requestMix: { ...cfg.requestMix, searches: v } })} />
-              </div>
+          <Field label="Active Users" hint="Same as Basics — adjust load volume here too.">
+            <input
+              type="number"
+              min={0}
+              value={cfg.activeUsers}
+              disabled={cfg.rpsOverrideEnabled}
+              onChange={(e) => patchConfig({ activeUsers: Math.max(0, Number(e.target.value)) })}
+              className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs tabular-nums focus:border-[var(--clay-primary)] focus:outline-none disabled:opacity-50"
+            />
+          </Field>
 
-              <Field label="Retry behavior">
-                <select
-                  value={cfg.retryStrategy}
-                  onChange={(e) => patchConfig({ retryStrategy: e.target.value as RetryStrategy })}
-                  className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs"
-                >
-                  <option value="none">None</option>
-                  <option value="conservative">Conservative retries</option>
-                  <option value="aggressive">Aggressive retries</option>
-                </select>
-                <p className="mt-1 text-[10px] text-[var(--clay-text-subtle)]">
-                  Retries can increase traffic during failures and make overload worse.
+          <Field label="Traffic Pattern" className="mt-3">
+            <select
+              value={cfg.trafficPattern}
+              onChange={(e) => patchConfig({ trafficPattern: e.target.value as TrafficPattern })}
+              className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs focus:border-[var(--clay-primary)] focus:outline-none"
+            >
+              {PATTERN_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <PatternFields cfg={cfg} patchConfig={patchConfig} baseRps={baseRps} />
+          </Field>
+
+          <div className="mt-4 space-y-3">
+            <label className="flex items-center justify-between">
+              <span className="text-xs text-[var(--clay-text)]">Override calculated RPS</span>
+              <Toggle checked={cfg.rpsOverrideEnabled} onChange={(v) => patchConfig({ rpsOverrideEnabled: v })} />
+            </label>
+            {cfg.rpsOverrideEnabled && (
+              <>
+                <input
+                  type="number"
+                  min={0}
+                  value={cfg.manualRpsOverride}
+                  onChange={(e) => patchConfig({ manualRpsOverride: Math.max(0, Number(e.target.value)) })}
+                  className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs tabular-nums"
+                />
+                <p className="text-[10px] text-[var(--clay-text-subtle)]">
+                  Direct RPS override can represent bots, background workers, integrations, or retry storms.
                 </p>
-              </Field>
+              </>
+            )}
+
+            <div>
+              <div className="mb-1 text-xs text-[var(--clay-text)]">Request Mix</div>
+              <MixRow label="Read" value={cfg.requestMix.reads} onChange={(v) => patchConfig({ requestMix: { ...cfg.requestMix, reads: v } })} />
+              <MixRow label="Write" value={cfg.requestMix.writes} onChange={(v) => patchConfig({ requestMix: { ...cfg.requestMix, writes: v } })} />
+              <MixRow label="Search" value={cfg.requestMix.searches} onChange={(v) => patchConfig({ requestMix: { ...cfg.requestMix, searches: v } })} />
             </div>
-          )}
+
+            <Field label="Retry behavior">
+              <select
+                value={cfg.retryStrategy}
+                onChange={(e) => patchConfig({ retryStrategy: e.target.value as RetryStrategy })}
+                className="w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-2.5 py-1.5 text-xs"
+              >
+                <option value="none">None</option>
+                <option value="conservative">Conservative retries</option>
+                <option value="aggressive">Aggressive retries</option>
+              </select>
+              <p className="mt-1 text-[10px] text-[var(--clay-text-subtle)]">
+                Retries can increase traffic during failures and make overload worse.
+              </p>
+            </Field>
+          </div>
         </div>
 
         <div className="px-4 py-3">
@@ -389,6 +417,8 @@ export function ClientConfigInspector({ embedded = false }: { embedded?: boolean
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
       <div className="border-t border-[var(--clay-border)] px-4 py-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Trash2, BookOpen, TrendingUp, ChevronDown, ChevronRight, Lightbulb, Wrench, ShieldAlert } from "lucide-react";
+import { TrendingUp, Wrench, ShieldAlert } from "lucide-react";
 import { useDesignStore } from "@/lib/simulator/store";
 import { useSimulationStore } from "@/lib/simulator/store";
 import { COMPONENT_REGISTRY, SIM_ICON_MAP } from "@/lib/simulator/component-registry";
@@ -10,6 +10,23 @@ import { cn } from "@/lib/utils";
 import { ClientConfigInspector } from "./client-config-inspector";
 import { ApplicationServerConfigInspector } from "./application-server-config-inspector";
 import { LoadBalancerConfigInspector } from "./load-balancer-config-inspector";
+import { DatabaseConfigInspector } from "./database-config-inspector";
+import { isDatabaseSimNode } from "@/lib/simulator/database-model";
+import {
+  InspectorPanel,
+  InspectorHeader,
+  InspectorScrollBody,
+  InspectorSection,
+  InspectorSubCard,
+  InspectorCollapsible,
+  InspectorNameField,
+  InspectorRemoveFooter,
+} from "./inspector-panel";
+import {
+  InspectorViewModeTabs,
+  InspectorBasicsPanel,
+  useInspectorViewModeForNode,
+} from "./inspector-basics-advanced";
 
 const HEALTH_COLORS: Record<SimHealth, string> = {
   healthy: "text-emerald-400",
@@ -51,6 +68,7 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
   const selectedNodeId = useDesignStore((s) => s.selectedNodeId);
   const design = useDesignStore((s) => s.design);
   const clearSelection = useDesignStore((s) => s.clearSelection);
+  const mergeNodeConfig = useDesignStore((s) => s.mergeNodeConfig);
   const updateNodeConfig = useDesignStore((s) => s.updateNodeConfig);
   const updateNodeLabel = useDesignStore((s) => s.updateNodeLabel);
   const removeNode = useDesignStore((s) => s.removeNode);
@@ -59,6 +77,7 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
   );
   const [showLearn, setShowLearn] = useState(true);
   const [showConfig, setShowConfig] = useState(true);
+  const { mode, setMode } = useInspectorViewModeForNode(selectedNodeId);
 
   if (!selectedNodeId || !design) return null;
 
@@ -77,120 +96,140 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
     return <LoadBalancerConfigInspector embedded={embedded} />;
   }
 
+  if (isDatabaseSimNode(node.type)) {
+    return <DatabaseConfigInspector embedded={embedded} />;
+  }
+
   const def = COMPONENT_REGISTRY[node.type];
   const Icon = SIM_ICON_MAP[node.type];
   const health = metrics?.health ?? "healthy";
+  const basicsConfigFields = def.configFields.slice(0, 3);
 
   return (
-    <div className={cn(
-      "flex h-full flex-col",
-      !embedded && "w-[300px] shrink-0 border-l border-[var(--clay-border)] bg-[var(--clay-surface)]/95 backdrop-blur-md lg:w-[320px]",
-    )}>
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-[var(--clay-border)] px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[color-mix(in_srgb,var(--clay-primary)_25%,transparent)] to-[color-mix(in_srgb,var(--clay-sky)_25%,transparent)]">
-            <Icon className="h-4.5 w-4.5 text-[var(--clay-primary)]" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-[var(--clay-text)]">
-              {def.label}
-            </div>
-            <span className={cn("rounded-full border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider", LAYER_BADGE[def.layer])}>
-              {LAYER_NAMES[def.layer]}
-            </span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={clearSelection}
-          className="grid h-7 w-7 place-items-center rounded-lg text-[var(--clay-text-subtle)] hover:bg-[var(--clay-surface-2)] hover:text-[var(--clay-text)]"
+    <InspectorPanel
+      embedded={embedded}
+      footer={
+        <InspectorRemoveFooter
+          onRemove={() => { removeNode(node.id); clearSelection(); }}
+        />
+      }
+    >
+      <InspectorHeader
+        icon={Icon}
+        iconClassName="bg-gradient-to-br from-[color-mix(in_srgb,var(--clay-primary)_25%,transparent)] to-[color-mix(in_srgb,var(--clay-sky)_25%,transparent)] text-[var(--clay-primary)]"
+        title={def.label}
+        badge={LAYER_NAMES[def.layer]}
+        badgeClassName={cn("border-transparent", LAYER_BADGE[def.layer])}
+        onClose={clearSelection}
+      />
+
+      <InspectorScrollBody>
+        <InspectorNameField value={node.label} onChange={(v) => updateNodeLabel(node.id, v)} />
+        <InspectorViewModeTabs mode={mode} onChange={setMode} />
+
+        {mode === "basics" ? (
+          <>
+            {metrics && (
+              <InspectorSection
+                icon={TrendingUp}
+                title="Live Metrics"
+                subtitle="Real-time simulation output for this component."
+                trailing={
+                  <span className={cn(
+                    "rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase",
+                    HEALTH_BG[health],
+                    HEALTH_COLORS[health],
+                  )}>
+                    {health}
+                  </span>
+                }
+              >
+                <div className="grid grid-cols-2 gap-2">
+                  <MetricTile label="RPS" value={`${metrics.currentRps}`} />
+                  <MetricTile label="Latency" value={`${metrics.avgLatencyMs}ms`} />
+                  <MetricTile label="P95" value={`${metrics.p95LatencyMs}ms`} />
+                  <MetricTile label="Error Rate" value={`${(metrics.errorRate * 100).toFixed(1)}%`} warn={metrics.errorRate > 0.05} />
+                  <MetricTile label="Load" value={`${metrics.utilizationPercent}%`} warn={metrics.utilizationPercent > 80} />
+                </div>
+              </InspectorSection>
+            )}
+
+            <InspectorBasicsPanel
+              node={node}
+              design={design}
+              metrics={metrics}
+              mergeNodeConfig={mergeNodeConfig}
+              updateNodeConfig={updateNodeConfig}
+              onSwitchAdvanced={() => setMode("advanced")}
+            />
+
+            {basicsConfigFields.length > 0 && (
+              <InspectorSection icon={Wrench} title="Quick settings" subtitle="Most common capacity knobs for this component.">
+                <div className="space-y-3">
+                  {basicsConfigFields.map((field) => (
+                    <ConfigField
+                      key={field.key}
+                      field={field}
+                      value={node.config[field.key] ?? field.default}
+                      onChange={(v) => updateNodeConfig(node.id, field.key, v)}
+                    />
+                  ))}
+                </div>
+              </InspectorSection>
+            )}
+          </>
+        ) : (
+          <>
+        <InspectorCollapsible
+          title="What is this?"
+          open={showLearn}
+          onToggle={() => setShowLearn(!showLearn)}
         >
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {/* Label */}
-        <div className="border-b border-[var(--clay-border)] px-4 py-3">
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-            Component Name
-          </label>
-          <input
-            value={node.label}
-            onChange={(e) => updateNodeLabel(node.id, e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] px-3 py-1.5 text-sm text-[var(--clay-text)] focus:border-[var(--clay-primary)] focus:outline-none"
-          />
-        </div>
-
-        {/* Learn section — educational */}
-        <div className="border-b border-[var(--clay-border)]">
-          <button
-            type="button"
-            onClick={() => setShowLearn(!showLearn)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-[var(--clay-surface-2)]/50"
-          >
-            <BookOpen className="h-3.5 w-3.5 text-[var(--clay-primary)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-muted)]">
-              What is this?
-            </span>
-            {showLearn ? <ChevronDown className="ml-auto h-3 w-3 text-[var(--clay-text-subtle)]" /> : <ChevronRight className="ml-auto h-3 w-3 text-[var(--clay-text-subtle)]" />}
-          </button>
-          {showLearn && (
-            <div className="px-4 pb-3">
-              <p className="text-xs leading-relaxed text-[var(--clay-text-muted)]">
-                {def.explain}
-              </p>
-
-              <div className="mt-2.5 rounded-lg bg-[var(--clay-surface-2)] p-2.5">
-                <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-                  <Lightbulb className="h-3 w-3" /> Think of it like...
-                </div>
-                <p className="mt-1 text-[11px] italic leading-relaxed text-[var(--clay-text-muted)]">
-                  &quot;{def.analogy}&quot;
-                </p>
+          <p className="text-xs leading-relaxed text-[var(--clay-text-muted)]">
+            {def.explain}
+          </p>
+          <InspectorSubCard title="Think of it like...">
+            <p className="text-[11px] italic leading-relaxed text-[var(--clay-text-muted)]">
+              &quot;{def.analogy}&quot;
+            </p>
+          </InspectorSubCard>
+          <div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--clay-text-subtle)]">
+              When to use
+            </div>
+            <p className="mt-0.5 text-[11px] text-[var(--clay-text-muted)]">{def.whenToUse}</p>
+          </div>
+          {def.tradeoffs.length > 0 && (
+            <div>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--clay-text-subtle)]">
+                Trade-offs to know
               </div>
-
-              <div className="mt-2">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-                  When to use
-                </div>
-                <p className="mt-0.5 text-[11px] text-[var(--clay-text-muted)]">{def.whenToUse}</p>
-              </div>
-
-              {def.tradeoffs.length > 0 && (
-                <div className="mt-2">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-                    Trade-offs to know
-                  </div>
-                  <ul className="mt-0.5 space-y-0.5">
-                    {def.tradeoffs.map((t, i) => (
-                      <li key={i} className="text-[11px] text-[var(--clay-text-muted)]">
-                        <span className="mr-1 text-amber-500">⚡</span>{t}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <ul className="mt-0.5 space-y-0.5">
+                {def.tradeoffs.map((t, i) => (
+                  <li key={i} className="text-[11px] text-[var(--clay-text-muted)]">
+                    <span className="mr-1 text-amber-500">⚡</span>{t}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
-        </div>
+        </InspectorCollapsible>
 
         {metrics && (
-          <div className="border-b border-[var(--clay-border)] px-4 py-3">
-            <div className="mb-2 flex items-center gap-2">
-              <TrendingUp className="h-3.5 w-3.5 text-[var(--clay-text-muted)]" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-                Live Metrics
-              </span>
+          <InspectorSection
+            icon={TrendingUp}
+            title="Live Metrics"
+            subtitle="Real-time simulation output for this component."
+            trailing={
               <span className={cn(
-                "ml-auto rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase",
+                "rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase",
                 HEALTH_BG[health],
                 HEALTH_COLORS[health],
               )}>
                 {health}
               </span>
-            </div>
+            }
+          >
             <div className="grid grid-cols-2 gap-2">
               <MetricTile label="RPS" value={`${metrics.currentRps}`} />
               <MetricTile label="Latency" value={`${metrics.avgLatencyMs}ms`} />
@@ -200,58 +239,33 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
               <MetricTile label="Load" value={`${metrics.utilizationPercent}%`} warn={metrics.utilizationPercent > 80} />
               <MetricTile label="Connections" value={`${metrics.activeConnections}`} />
             </div>
-          </div>
+          </InspectorSection>
         )}
 
-        {/* Config Fields */}
-        <div className="border-b border-[var(--clay-border)]">
-          <button
-            type="button"
-            onClick={() => setShowConfig(!showConfig)}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-[var(--clay-surface-2)]/50"
-          >
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-              Configuration
-            </span>
-            {showConfig ? <ChevronDown className="ml-auto h-3 w-3 text-[var(--clay-text-subtle)]" /> : <ChevronRight className="ml-auto h-3 w-3 text-[var(--clay-text-subtle)]" />}
-          </button>
-          {showConfig && (
-            <div className="px-4 pb-3 space-y-3">
-              {def.configFields.map((field) => (
-                <ConfigField
-                  key={field.key}
-                  field={field}
-                  value={node.config[field.key] ?? field.default}
-                  onChange={(v) => updateNodeConfig(node.id, field.key, v)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Description */}
-        <div className="px-4 py-3">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--clay-text-subtle)]">
-            Technical Summary
-          </div>
-          <p className="text-xs text-[var(--clay-text-muted)]">{def.description}</p>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-[var(--clay-border)] px-4 py-3">
-        <button
-          type="button"
-          onClick={() => {
-            removeNode(node.id);
-            clearSelection();
-          }}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-300/30 bg-rose-500/8 px-3 py-2 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/15"
+        <InspectorCollapsible
+          title="Configuration"
+          open={showConfig}
+          onToggle={() => setShowConfig(!showConfig)}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Remove Component
-        </button>
-      </div>
-    </div>
+          <div className="space-y-3">
+            {def.configFields.map((field) => (
+              <ConfigField
+                key={field.key}
+                field={field}
+                value={node.config[field.key] ?? field.default}
+                onChange={(v) => updateNodeConfig(node.id, field.key, v)}
+              />
+            ))}
+          </div>
+        </InspectorCollapsible>
+
+        <InspectorSection title="Technical Summary">
+          <p className="text-xs text-[var(--clay-text-muted)]">{def.description}</p>
+        </InspectorSection>
+          </>
+        )}
+      </InspectorScrollBody>
+    </InspectorPanel>
   );
 }
 
