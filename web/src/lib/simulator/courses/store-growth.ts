@@ -1,12 +1,16 @@
 import type { CourseDef, ArchitectureSnapshot } from "./types";
 import { getAllMilestones } from "./types";
 
-/** Chapter 1: Shoppers → Web App → Store Database — the smallest real store */
+/**
+ * Chapter 1: Shoppers → Web App → Store Database — smallest real store.
+ * App server: 4 cores, 50ms processing, 200 concurrent = 4000 rps capacity.
+ * At 2 rps this is totally fine — the point is to show a working system.
+ */
 const CH1_ARCH: ArchitectureSnapshot = {
   nodes: [
-    { type: "client", label: "Shoppers", x: 80, y: 280, config: { requestsPerSecond: 2 } },
-    { type: "app_server", label: "Web App", x: 480, y: 280, config: { replicas: 1, maxRps: 50 } },
-    { type: "sql_database", label: "Store Database", x: 880, y: 280, config: { engine: "postgres" } },
+    { type: "client", label: "Shoppers", x: 80, y: 280, config: { activeUsers: 10, userActivityPreset: "browsing" } },
+    { type: "app_server", label: "Web App", x: 480, y: 280, config: { instanceCount: 1, replicas: 1, maxConcurrentRequestsPerInstance: 100, applicationComputeTimeMs: 20, responseDeadlineMs: 3000, maxWaitingQueue: 500 } },
+    { type: "sql_database", label: "Store Database", x: 880, y: 280, config: { engine: "postgres", connectionPoolSize: 20, avgQueryTimeMs: 5 } },
   ],
   edges: [
     { sourceLabel: "Shoppers", targetLabel: "Web App" },
@@ -15,12 +19,18 @@ const CH1_ARCH: ArchitectureSnapshot = {
   trafficRps: 2,
 } as ArchitectureSnapshot;
 
-/** Chapter 2: Same architecture, viral traffic — Web App becomes the bottleneck */
+/**
+ * Chapter 2: Same architecture, viral traffic — Web App becomes the bottleneck.
+ * App server: 2 cores, 80ms processing, 30 concurrent = 375 rps capacity per instance.
+ * BUT with maxConcurrentReqs: 30 and avgProcessingTimeMs: 80, capacity = (30/80)*1000 = 375 rps.
+ * We reduce to maxConcurrentReqs: 8, avgProcessingTimeMs: 200 → capacity = (8/200)*1000 = 40 rps.
+ * At 50 rps incoming, load = 50/40 = 1.25 → overload, errors, latency spike.
+ */
 const CH2_ARCH: ArchitectureSnapshot = {
   nodes: [
-    { type: "client", label: "Shoppers", x: 80, y: 280, config: { requestsPerSecond: 50 } },
-    { type: "app_server", label: "Web App", x: 480, y: 280, config: { replicas: 1, maxRps: 40 } },
-    { type: "sql_database", label: "Store Database", x: 880, y: 280, config: { engine: "postgres" } },
+    { type: "client", label: "Shoppers", x: 80, y: 280, config: { activeUsers: 250, userActivityPreset: "browsing" } },
+    { type: "app_server", label: "Web App", x: 480, y: 280, config: { instanceCount: 1, replicas: 1, maxConcurrentRequestsPerInstance: 8, applicationComputeTimeMs: 20, responseDeadlineMs: 3000, maxWaitingQueue: 200 } },
+    { type: "sql_database", label: "Store Database", x: 880, y: 280, config: { engine: "postgres", connectionPoolSize: 20, avgQueryTimeMs: 5 } },
   ],
   edges: [
     { sourceLabel: "Shoppers", targetLabel: "Web App" },
@@ -99,21 +109,21 @@ export const STORE_GROWTH_COURSE: CourseDef = {
           milestoneCount: 1,
           title: "Viral post",
           productUpdate:
-            "Your sneaker store goes viral after a social media post. Traffic jumps from 2 rps to 50 rps (3,000 requests per minute). Your single Web App can only handle 40 rps.",
+            "Your sneaker store goes viral after a social media post. Traffic jumps from 2 rps to 50 rps (3,000 requests per minute). Your single Web App can only handle about 40 rps with its current resources.",
           userProblem: "Product pages are slow. Some requests time out. Shoppers are bouncing.",
-          goal: "Identify the bottleneck and scale the web tier horizontally.",
-          task: "Find what's failing, then add a load balancer and a second app server.",
+          goal: "Identify the bottleneck and scale the web tier so it can handle the load.",
+          task: "Find what's failing, then scale the system to handle 50 rps without errors.",
           architecture: CH2_ARCH,
           expectsFailure: true,
           failureDescription:
-            "The single Web App is saturated — CPU pegged, requests queue up, latency spikes, and errors appear.",
+            "The single Web App is saturated — it can only process 8 concurrent requests at 200ms each (40 rps capacity). CPU is pegged, requests queue up, latency spikes, and errors appear.",
           bottleneckNodeLabel: "Web App",
           reflectionQuestion: {
             question: "What is the current bottleneck?",
             options: ["Shoppers (client)", "Web App", "Store Database", "Network"],
             correctAnswer: "Web App",
             explanation:
-              "The Web App can only handle 40 rps but is receiving 50 rps. CPU saturation and queueing happen at the compute layer first.",
+              "The Web App can only handle ~40 rps (8 concurrent × 200ms processing) but is receiving 50 rps. It saturates and starts dropping requests.",
           },
           suggestedComponent: "load_balancer",
           suggestedComponentHint:
@@ -157,17 +167,17 @@ export const STORE_GROWTH_COURSE: CourseDef = {
             "Run simulation and observe failure",
             "Identify bottleneck",
             "Add load balancer + second app server",
-            "Re-run and compare metrics",
+            "Re-run and confirm system handles 50 rps",
           ],
-          validateArchitecture: (design) => {
-            const hasLb = design.nodes.some((n) => n.type === "load_balancer");
-            const appCount = design.nodes.filter((n) => n.type === "app_server").length;
-            return hasLb && appCount >= 2;
+          acceptanceCriteria: {
+            maxP95LatencyMs: 500,
+            maxErrorRate: 0.02,
+            minHandledRps: 45,
+            sustainForCycles: 6,
           },
         },
       ],
     },
-    // Chapters 3–8: data stubs for evolution timeline (milestones added incrementally)
     {
       id: "ch3",
       number: 3,

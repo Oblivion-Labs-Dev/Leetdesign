@@ -7,6 +7,9 @@ import { useSimulationStore } from "@/lib/simulator/store";
 import { COMPONENT_REGISTRY, SIM_ICON_MAP } from "@/lib/simulator/component-registry";
 import type { ConfigFieldDef, SimHealth, ArchLayer } from "@/lib/simulator/types";
 import { cn } from "@/lib/utils";
+import { ClientConfigInspector } from "./client-config-inspector";
+import { ApplicationServerConfigInspector } from "./application-server-config-inspector";
+import { LoadBalancerConfigInspector } from "./load-balancer-config-inspector";
 
 const HEALTH_COLORS: Record<SimHealth, string> = {
   healthy: "text-emerald-400",
@@ -61,6 +64,18 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
 
   const node = design.nodes.find((n) => n.id === selectedNodeId);
   if (!node) return null;
+
+  if (node.type === "client") {
+    return <ClientConfigInspector embedded={embedded} />;
+  }
+
+  if (node.type === "app_server") {
+    return <ApplicationServerConfigInspector embedded={embedded} />;
+  }
+
+  if (node.type === "load_balancer") {
+    return <LoadBalancerConfigInspector embedded={embedded} />;
+  }
 
   const def = COMPONENT_REGISTRY[node.type];
   const Icon = SIM_ICON_MAP[node.type];
@@ -161,33 +176,6 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
           )}
         </div>
 
-        {/* Diagnosis — shown when unhealthy */}
-        {metrics && health !== "healthy" && metrics.diagnosisReason && (
-          <div className={cn(
-            "border-b px-4 py-3",
-            health === "down" ? "border-rose-300/30 bg-rose-500/5" :
-            health === "failing" ? "border-rose-200/30 bg-rose-500/3" :
-            "border-amber-300/30 bg-amber-500/5",
-          )}>
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldAlert className={cn("h-4 w-4", HEALTH_COLORS[health])} />
-              <span className={cn("text-[10px] font-bold uppercase tracking-wider", HEALTH_COLORS[health])}>
-                Diagnosis
-              </span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-[var(--clay-text-muted)]">
-              {metrics.diagnosisReason}
-            </p>
-            <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-[var(--clay-surface-2)] p-2">
-              <Wrench className="mt-0.5 h-3 w-3 shrink-0 text-[var(--clay-primary)]" />
-              <p className="text-[11px] font-medium leading-relaxed text-[var(--clay-text)]">
-                {metrics.diagnosisSuggestion}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Live Metrics */}
         {metrics && (
           <div className="border-b border-[var(--clay-border)] px-4 py-3">
             <div className="mb-2 flex items-center gap-2">
@@ -209,7 +197,8 @@ export function ConfigInspector({ embedded = false }: { embedded?: boolean }) {
               <MetricTile label="P95" value={`${metrics.p95LatencyMs}ms`} />
               <MetricTile label="Error Rate" value={`${(metrics.errorRate * 100).toFixed(1)}%`} warn={metrics.errorRate > 0.05} />
               <MetricTile label="Queue" value={`${metrics.queueDepth}`} warn={metrics.queueDepth > 100} />
-              <MetricTile label="CPU" value={`${metrics.cpuPercent}%`} warn={metrics.cpuPercent > 80} />
+              <MetricTile label="Load" value={`${metrics.utilizationPercent}%`} warn={metrics.utilizationPercent > 80} />
+              <MetricTile label="Connections" value={`${metrics.activeConnections}`} />
             </div>
           </div>
         )}

@@ -84,4 +84,10 @@ are persisted in `~/.leetdesign/user-state.json`.
   `components/{layout,badge,bot,pipeline,delivery,workspace}`.
 - All shared types live in `src/types/index.ts`.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full system map.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the legacy MVP system map.
+
+**For the current architecture simulator**, use the repo docs folder:
+
+- [../docs/README.md](../docs/README.md) — index
+- [../docs/AGENT-HANDOFF.md](../docs/AGENT-HANDOFF.md) — start here if you're new to the codebase
+- [../docs/SIMULATOR.md](../docs/SIMULATOR.md) — engine and UI

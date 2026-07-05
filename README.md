@@ -82,8 +82,16 @@ on your machine. No account or backend service is required.
 
 ## Documentation
 
-- [web/ARCHITECTURE.md](web/ARCHITECTURE.md) — code architecture and how to
-  extend Leetdesign (add a new component, scenario, project, or judge).
+Living docs for the simulator and architecture validation (update alongside code changes):
+
+- [docs/README.md](docs/README.md) — index
+- [docs/AGENT-HANDOFF.md](docs/AGENT-HANDOFF.md) — quick onboarding for contributors/agents
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — current system layout
+- [docs/SIMULATOR.md](docs/SIMULATOR.md) — engine, stores, courses
+- [docs/TRAFFIC-CONTRACTS.md](docs/TRAFFIC-CONTRACTS.md) — wiring validation approach
+- [docs/COMPONENT-MODEL.md](docs/COMPONENT-MODEL.md) — component config (Client first)
+
+Legacy: [web/ARCHITECTURE.md](web/ARCHITECTURE.md) — older MVP pipeline doc (partially outdated).
 
 ## License
 

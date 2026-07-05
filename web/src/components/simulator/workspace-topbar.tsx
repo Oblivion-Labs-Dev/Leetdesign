@@ -16,7 +16,7 @@ import { useSimulationStore } from "@/lib/simulator/store";
 import { useTeachingStore } from "@/lib/simulator/teaching-store";
 import { useWorkspaceStore } from "@/lib/simulator/workspace-store";
 import { findPrimaryTracePath } from "@/lib/simulator/topology";
-import { resetEngine } from "@/lib/simulator/engine";
+import { restartSimulationFlow } from "@/lib/simulator/engine";
 import { ClayThemeToggle } from "@/components/landing/clay-theme-toggle";
 import { useCourseStore } from "@/lib/simulator/course-store";
 import { getCourseById } from "@/lib/simulator/courses";
@@ -142,11 +142,12 @@ export function WorkspaceTopbar() {
           <>
             <button
               type="button"
-              onClick={() => { useSimulationStore.getState().stop(); resetEngine(); }}
-              className="grid h-8 w-8 place-items-center rounded-lg text-[var(--clay-text-subtle)] hover:bg-[var(--clay-surface-2)]"
-              title="Reset simulation"
+              onClick={() => restartSimulationFlow()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--clay-border)] px-2.5 text-[10px] font-semibold text-[var(--clay-text-muted)] hover:bg-[var(--clay-surface-2)] hover:text-[var(--clay-text)]"
+              title="Clear overload state and restart traffic from a clean slate"
             >
               <RotateCcw className="h-3.5 w-3.5" />
+              Restart flow
             </button>
             <div className="hidden items-center gap-0.5 rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface-2)] p-0.5 sm:flex">
               {SPEEDS.map((s) => (

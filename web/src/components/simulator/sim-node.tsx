@@ -2,12 +2,13 @@
 
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { X, HelpCircle, AlertTriangle, Flame, Wrench } from "lucide-react";
+import { X, HelpCircle, AlertTriangle, Flame } from "lucide-react";
 import { SIM_ICON_MAP, COMPONENT_REGISTRY } from "@/lib/simulator/component-registry";
 import { useDesignStore } from "@/lib/simulator/store";
 import { useSimulationStore } from "@/lib/simulator/store";
 import type { SimComponentType, SimHealth, ArchLayer } from "@/lib/simulator/types";
 import { cn } from "@/lib/utils";
+import { INSTANCE_POOL_TOOLTIP, formatRps } from "@/lib/simulator/app-server-pool";
 
 export interface SimNodeData extends Record<string, unknown> {
   label: string;
@@ -55,7 +56,24 @@ function SimNodeInner({ data, selected }: NodeProps) {
   const health = metrics?.health ?? "healthy";
   const hs = HEALTH_STYLES[health];
   const lt = LAYER_THEME[def.layer];
-  const loadPercent = metrics ? Math.min(100, metrics.cpuPercent) : 0;
+  const isClient = d.componentType === "client";
+  const isAppServer = d.componentType === "app_server";
+  const isLoadBalancer = d.componentType === "load_balancer";
+  const loadPercent = metrics
+    ? Math.min(
+        100,
+        isAppServer && metrics.poolUtilizationPercent != null
+          ? metrics.poolUtilizationPercent
+          : metrics.utilizationPercent,
+      )
+    : 0;
+  const compactFooter = isClient || isAppServer || isLoadBalancer;
+  const instanceCount = metrics?.instanceCount ?? 1;
+  const healthyInstanceCount = metrics?.healthyInstanceCount ?? instanceCount;
+  const perInstanceRps = metrics?.perInstanceRps ?? (
+    metrics && healthyInstanceCount > 0 ? metrics.currentRps / healthyInstanceCount : 0
+  );
+  const lbDist = metrics?.loadBalancerDistribution;
 
   return (
     <div
@@ -136,7 +154,7 @@ function SimNodeInner({ data, selected }: NodeProps) {
           {/* Layer badge + help */}
           <div className="mb-2.5 flex items-center justify-between">
             <span className={cn("rounded px-1.5 py-[2px] text-[7px] font-bold uppercase tracking-[0.2em]", lt.badge, lt.badgeText)}>
-              {lt.text}
+              {isAppServer ? "COMPUTE" : lt.text}
             </span>
             <button
               type="button"
@@ -172,13 +190,25 @@ function SimNodeInner({ data, selected }: NodeProps) {
                   <AlertTriangle className="h-3 w-3 text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.8)]" />
                 </div>
               )}
+              {isAppServer && instanceCount > 1 && (
+                <div
+                  className="absolute -bottom-1.5 -right-1.5 rounded-md border border-[var(--clay-border)] bg-[var(--clay-surface)] px-1 py-px text-[7px] font-bold tabular-nums text-[var(--clay-text-muted)] shadow-sm"
+                  title={INSTANCE_POOL_TOOLTIP}
+                >
+                  ×{instanceCount}
+                </div>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[14px] font-semibold leading-tight text-[var(--clay-text)]">
                 {d.label}
               </div>
               <div className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-[var(--clay-text-muted)]">
-                {def.explain}
+                {isClient
+                  ? "Browsers, mobile apps, or integrations sending requests into your system."
+                  : isAppServer
+                    ? def.description
+                    : def.explain}
               </div>
             </div>
           </div>
@@ -186,32 +216,79 @@ function SimNodeInner({ data, selected }: NodeProps) {
 
         {/* Metrics footer */}
         <div className="border-t border-[var(--clay-border)] px-3 py-2">
-          {metrics && metrics.currentRps > 0 ? (
+          {metrics && (metrics.currentRps > 0 || isClient || isAppServer || isLoadBalancer) ? (
             <div className="space-y-1.5">
-              <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--clay-surface-2)]">
-                <div
-                  className={cn(
-                    "h-full rounded-full transition-all duration-500",
-                    loadPercent < 60 ? "bg-emerald-500" :
-                    loadPercent < 85 ? "bg-amber-500" : "bg-rose-500",
-                  )}
-                  style={{ width: `${loadPercent}%` }}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[9px]">
-                <span className="flex items-center gap-1 text-[var(--clay-text-muted)]">
-                  <span className={cn("h-[5px] w-[5px] rounded-full", hs.dot)} />
-                  {health === "down" ? "DOWN" : health === "failing" ? "FAILING" : `${metrics.currentRps} rps`}
-                </span>
-                <span className="font-mono text-[var(--clay-text-subtle)]">
-                  {metrics.avgLatencyMs}ms
-                </span>
-                {metrics.errorRate > 0 && (
-                  <span className="font-mono font-semibold text-rose-500">
-                    {(metrics.errorRate * 100).toFixed(0)}%
+              {!compactFooter && (
+                <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--clay-surface-2)]">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      loadPercent < 60 ? "bg-emerald-500" :
+                      loadPercent < 85 ? "bg-amber-500" : "bg-rose-500",
+                    )}
+                    style={{ width: `${loadPercent}%` }}
+                  />
+                </div>
+              )}
+              {isAppServer ? (
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1 text-[9px] text-[var(--clay-text-muted)]">
+                    <span className={cn("h-[5px] w-[5px] rounded-full", hs.dot)} />
+                    <span className="font-medium">{formatRps(metrics.currentRps)} RPS total</span>
+                  </div>
+                  <div className="text-[8px] font-mono leading-snug text-[var(--clay-text-subtle)]">
+                    P95 {metrics.p95LatencyMs} ms ·{" "}
+                    <span title={INSTANCE_POOL_TOOLTIP}>
+                      {healthyInstanceCount}/{instanceCount} healthy
+                    </span>
+                    {" · "}
+                    {formatRps(perInstanceRps, 1)} RPS/instance
+                  </div>
+                </div>
+              ) : isLoadBalancer && lbDist ? (
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1 text-[9px] text-[var(--clay-text-muted)]">
+                    <span className={cn("h-[5px] w-[5px] rounded-full", hs.dot)} />
+                    <span className="font-medium">{formatRps(lbDist.incomingRps)} RPS incoming</span>
+                  </div>
+                  <div className="text-[8px] font-mono leading-snug text-[var(--clay-text-subtle)]">
+                    {lbDist.healthyTargetPools} pool{lbDist.healthyTargetPools === 1 ? "" : "s"}
+                    {lbDist.distributions.filter((d) => d.healthy).length > 0 && (
+                      <>
+                        {" · "}
+                        {lbDist.distributions
+                          .filter((d) => d.healthy)
+                          .map((d) => `${d.percent % 1 === 0 ? d.percent.toFixed(0) : d.percent.toFixed(1)}%`)
+                          .join(" / ")}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className={cn(
+                  "flex items-center text-[9px]",
+                  compactFooter ? "justify-between gap-2" : "justify-between",
+                )}>
+                  <span className="flex shrink-0 items-center gap-1 text-[var(--clay-text-muted)]">
+                    <span className={cn("h-[5px] w-[5px] rounded-full", hs.dot)} />
+                    {compactFooter
+                      ? `${metrics.currentRps} rps`
+                      : health === "down"
+                        ? "DOWN"
+                        : health === "failing"
+                          ? "FAILING"
+                          : `${metrics.currentRps} rps`}
                   </span>
-                )}
-              </div>
+                  <span className="shrink-0 font-mono text-[var(--clay-text-subtle)]">
+                    {compactFooter ? `P95 ${metrics.p95LatencyMs}ms` : `${metrics.avgLatencyMs}ms`}
+                  </span>
+                  {!compactFooter && metrics.errorRate > 0 && (
+                    <span className="font-mono font-semibold text-rose-500">
+                      {(metrics.errorRate * 100).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-[9px] text-[var(--clay-text-subtle)]">
@@ -221,20 +298,7 @@ function SimNodeInner({ data, selected }: NodeProps) {
           )}
         </div>
 
-        {/* On-card diagnosis banner */}
-        {metrics && health !== "healthy" && metrics.diagnosisReason && (
-          <div className={cn(
-            "border-t px-3 py-1.5 text-[8px] leading-relaxed",
-            health === "down" ? "border-rose-400/30 bg-rose-500/8 text-rose-600" :
-            health === "failing" ? "border-rose-300/30 bg-rose-500/5 text-rose-500" :
-            "border-amber-400/30 bg-amber-500/5 text-amber-600",
-          )}>
-            <div className="flex items-start gap-1">
-              <Wrench className="mt-0.5 h-2.5 w-2.5 shrink-0" />
-              <span className="line-clamp-2">{metrics.diagnosisSuggestion}</span>
-            </div>
-          </div>
-        )}
+        {/* On-card diagnosis removed — details live in the inspector panel */}
       </div>
 
       {/* Educational tooltip */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -21,6 +21,7 @@ import type { SimComponentType } from "@/lib/simulator/types";
 import { SimNode, type SimNodeData } from "./sim-node";
 import { SimEdge } from "./sim-edge";
 import { CanvasContextMenu } from "./canvas-context-menu";
+import { validateDesign } from "@/lib/simulator/traffic-contracts";
 
 const NODE_TYPES = { sim: SimNode };
 const EDGE_TYPES = { sim: SimEdge };
@@ -49,7 +50,16 @@ function CanvasInner() {
   const dimOthers = useTeachingStore((s) => s.dimOthers);
   const trace = useTeachingStore((s) => s.trace);
   const running = useSimulationStore((s) => s.running);
+  const setArchitectureViolations = useSimulationStore((s) => s.setArchitectureViolations);
   const { screenToFlowPosition } = useReactFlow();
+
+  useEffect(() => {
+    if (!design) {
+      setArchitectureViolations([]);
+      return;
+    }
+    setArchitectureViolations(validateDesign(design));
+  }, [design, setArchitectureViolations]);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
@@ -264,6 +274,7 @@ function CanvasInner() {
           onClose={handleContextClose}
         />
       )}
+
     </div>
   );
 }

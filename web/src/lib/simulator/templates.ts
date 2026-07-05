@@ -19,7 +19,7 @@ function edge(src: SimNode, tgt: SimNode, protocol: SimEdge["protocol"] = "http"
     source: src.id,
     target: tgt.id,
     protocol,
-    config: { bandwidthMbps: 1000, latencyMs: 1, encrypted: false },
+    config: { bandwidthMbps: 1000, latencyMs: 1, encrypted: false, weight: 1 },
   };
 }
 

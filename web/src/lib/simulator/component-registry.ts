@@ -1,3 +1,7 @@
+/**
+ * Component definitions — config fields, routing behavior, teaching copy.
+ * @see docs/COMPONENT-MODEL.md
+ */
 import {
   Users,
   ShieldCheck,
@@ -44,7 +48,10 @@ import type {
   ConfigFieldDef,
   CategoryDef,
   ArchLayer,
+  RoutingBehavior,
 } from "./types";
+import { clientConfigToStorage, DEFAULT_CLIENT_TRAFFIC } from "./client-traffic";
+import { appServerConfigToStorage, DEFAULT_APP_SERVER } from "./app-server-model";
 
 // ── helpers ────────────────────────────────────────────────────────
 
@@ -88,10 +95,12 @@ function defaults(fields: ConfigFieldDef[]): Record<string, string | number | bo
 interface CompOpts {
   isTrafficSource?: boolean;
   layer: ArchLayer;
+  routingBehavior: RoutingBehavior;
   explain: string;
   analogy: string;
   whenToUse: string;
   tradeoffs: string[];
+  defaultConfig?: Record<string, string | number | boolean>;
 }
 
 function comp(
@@ -108,12 +117,13 @@ function comp(
     category,
     description,
     layer: opts.layer,
+    routingBehavior: opts.routingBehavior,
     explain: opts.explain,
     analogy: opts.analogy,
     whenToUse: opts.whenToUse,
     tradeoffs: opts.tradeoffs,
     configFields,
-    defaultConfig: defaults(configFields),
+    defaultConfig: opts.defaultConfig ?? defaults(configFields),
     isTrafficSource: opts.isTrafficSource,
   };
 }
@@ -121,8 +131,6 @@ function comp(
 // ── shared field presets ────────────────────────────────────────────
 
 const REPLICAS = num("replicas", "Replicas", 1, { min: 1, max: 100 });
-const MAX_RPS = num("maxRps", "Max Throughput", 1000, { min: 1, max: 1_000_000, unit: "rps" });
-const LATENCY = num("latencyMs", "Processing Latency", 10, { min: 0, max: 30_000, unit: "ms" });
 const MAX_CONN = num("maxConnections", "Max Connections", 10_000, { min: 10, max: 1_000_000 });
 const FAILOVER = bool("failoverEnabled", "Auto Failover", true);
 const STORAGE_TB = num("storageTB", "Storage", 1, { min: 0.01, max: 10_000, unit: "TB", step: 0.1 });
@@ -132,34 +140,30 @@ const RETENTION = num("retentionHours", "Retention", 168, { min: 1, max: 87_600,
 
 const COMPONENTS: ComponentDef[] = [
   // ─── Core ────────────────────────────────────────────
-  comp("client", "Client", "core", "End-user device or app generating traffic to the system.", [
-    num("requestsPerSecond", "Requests/sec", 100, { min: 1, max: 100_000, unit: "rps" }),
-    num("concurrentUsers", "Concurrent Users", 1000, { min: 1, max: 10_000_000 }),
-    sel("requestPattern", "Traffic Pattern", "constant", [
-      "constant:Constant",
-      "burst:Burst",
-      "sine_wave:Sine Wave",
-      "ramp:Ramp Up",
-    ]),
-  ], {
+  comp("client", "Client", "core", "Browsers, mobile apps, or integrations sending requests into your system.", [], {
     isTrafficSource: true,
+    routingBehavior: "source",
     layer: "client_layer",
-    explain: "The user's device — a phone, laptop, or browser — that sends requests to your system and displays the results.",
-    analogy: "Like a customer walking into a store and asking for something from the clerk behind the counter.",
-    whenToUse: "Every system has clients. This represents the people (or apps) actually using your product.",
+    explain: "Browsers, mobile apps, or partner clients generating demand toward your system.",
+    analogy: "Like diners in a restaurant — their orders (requests) keep the kitchen busy.",
+    whenToUse: "Every system has clients. They represent active users and the traffic they create.",
     tradeoffs: [
-      "More concurrent users means more load on every downstream component.",
-      "Different client types (mobile, web, API) may need different response formats.",
+      "More active users means more requests — but failure only happens when backends cannot keep up.",
       "Bursty traffic patterns can overwhelm a system sized only for average load.",
+      "Retries during failures can amplify overload.",
     ],
+    defaultConfig: clientConfigToStorage(DEFAULT_CLIENT_TRAFFIC),
   }),
 
   comp("api_gateway", "API Gateway", "core", "Unified entry point handling auth, routing, and rate limiting.", [
-    REPLICAS, MAX_RPS, LATENCY,
+    REPLICAS,
     num("rateLimitRps", "Rate Limit", 5000, { min: 1, max: 1_000_000, unit: "rps" }),
     bool("authEnabled", "Auth Enabled", true),
+    num("authLatencyMs", "Auth Latency", 5, { min: 1, max: 100, unit: "ms" }),
     num("timeoutMs", "Timeout", 30_000, { min: 100, max: 300_000, unit: "ms" }),
+    MAX_CONN,
   ], {
+    routingBehavior: "split",
     layer: "gateway_layer",
     explain: "A single front door for your entire system that checks who you are, decides where to send your request, and makes sure nobody sends too many requests.",
     analogy: "Like a building's reception desk — they check your ID, tell you which floor to go to, and limit how many visitors enter at once.",
@@ -171,18 +175,22 @@ const COMPONENTS: ComponentDef[] = [
     ],
   }),
 
-  comp("load_balancer", "Load Balancer", "core", "Distributes traffic across replicas for scale and availability.", [
-    REPLICAS, MAX_RPS, LATENCY,
-    sel("algorithm", "Algorithm", "round_robin", [
+  comp("load_balancer", "Load Balancer", "core", "Distributes traffic across service pools for scale and availability.", [
+    REPLICAS,
+    sel("algorithm", "Routing Algorithm", "round_robin", [
       "round_robin:Round Robin",
+      "weighted:Weighted Round Robin",
       "least_connections:Least Connections",
-      "ip_hash:IP Hash",
-      "weighted:Weighted",
+      "least_response_time:Least Response Time",
+      "path_based:Path-based Routing",
+      "header_based:Header-based Routing",
+      "ip_hash:IP Hash (sticky)",
     ]),
     MAX_CONN,
     num("healthCheckMs", "Health Check Interval", 5000, { min: 500, max: 60_000, unit: "ms" }),
     bool("stickySession", "Sticky Sessions", false),
   ], {
+    routingBehavior: "split",
     layer: "gateway_layer",
     explain: "A traffic cop that splits incoming visitors across multiple servers so no single one gets overwhelmed.",
     analogy: "Like a restaurant host directing guests to available tables instead of seating everyone at table 1.",
@@ -195,11 +203,14 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   comp("web_server", "Web Server", "core", "Serves static files and forwards dynamic requests to app servers.", [
-    REPLICAS, MAX_RPS, LATENCY,
+    REPLICAS,
     MAX_CONN,
-    bool("staticCacheEnabled", "Static Cache", true),
+    num("workerProcesses", "Worker Processes", 4, { min: 1, max: 64 }),
+    num("staticCacheHitRate", "Static Cache Hit Rate", 0.8, { min: 0, max: 1, step: 0.05 }),
     bool("compressionEnabled", "Compression", true),
+    num("avgStaticLatencyMs", "Static Serve Latency", 2, { min: 1, max: 50, unit: "ms" }),
   ], {
+    routingBehavior: "filter",
     layer: "service_layer",
     explain: "A server that hands out static files like images, CSS, and HTML pages, and passes any complex requests along to the app server.",
     analogy: "Like a librarian who can hand you books from the shelf instantly but sends you to a specialist for research questions.",
@@ -211,29 +222,27 @@ const COMPONENTS: ComponentDef[] = [
     ],
   }),
 
-  comp("app_server", "App Server", "core", "Stateless service running business logic.", [
-    REPLICAS, MAX_RPS, LATENCY,
-    num("cpuCores", "CPU Cores", 4, { min: 1, max: 128 }),
-    num("memoryMB", "Memory", 4096, { min: 256, max: 524_288, unit: "MB" }),
-    num("maxConcurrentReqs", "Max Concurrent", 200, { min: 1, max: 100_000 }),
-  ], {
+  comp("app_server", "Application Server Pool", "core", "Runs backend logic across a pool of service instances.", [], {
+    routingBehavior: "passthrough",
     layer: "service_layer",
-    explain: "The brain of your system — it runs all the business logic, like processing an order, calculating a price, or checking if a username is taken.",
-    analogy: "Like the kitchen in a restaurant — it takes the order from the waiter, cooks the meal, and sends it back out.",
-    whenToUse: "Every system with custom logic needs at least one app server. Add more replicas when traffic increases.",
+    defaultConfig: appServerConfigToStorage(DEFAULT_APP_SERVER),
+    explain: "Application server pools run business logic across many identical replicas. The load balancer sends each pool a share of traffic; the pool divides that load across healthy instances.",
+    analogy: "Like the kitchen in a restaurant — it takes the order, cooks the meal, and coordinates with the pantry (database) and suppliers (APIs).",
+    whenToUse: "Every system with custom logic needs at least one application server. Scale instances when traffic grows.",
     tradeoffs: [
       "Stateless servers are easy to scale but require external storage for session data.",
-      "More CPU and memory per server costs more money.",
-      "Too many concurrent requests can exhaust memory and crash the server.",
+      "Each downstream call per request adds latency and load on databases and caches.",
+      "Too much traffic without enough capacity causes queues, timeouts, and errors that reach users.",
     ],
   }),
 
   comp("reverse_proxy", "Reverse Proxy", "core", "Forwards requests, handles TLS termination and caching.", [
-    REPLICAS, MAX_RPS, LATENCY,
+    REPLICAS,
     MAX_CONN,
-    bool("cacheEnabled", "Cache Enabled", true),
+    num("cacheHitRate", "Cache Hit Rate", 0.3, { min: 0, max: 1, step: 0.05 }),
     bool("compressionEnabled", "Compression", true),
   ], {
+    routingBehavior: "filter",
     layer: "gateway_layer",
     explain: "A middleman server that sits in front of your real servers, handling encryption, caching, and hiding your internal setup from the outside world.",
     analogy: "Like a personal assistant who takes all your calls, handles the easy stuff, and only passes through the important ones.",
@@ -246,7 +255,7 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   comp("rate_limiter", "Rate Limiter", "core", "Throttles requests above a configured threshold.", [
-    MAX_RPS,
+    num("maxRps", "Rate Limit", 1000, { min: 1, max: 1_000_000, unit: "rps" }),
     sel("algorithm", "Algorithm", "token_bucket", [
       "token_bucket:Token Bucket",
       "sliding_window:Sliding Window",
@@ -256,6 +265,7 @@ const COMPONENTS: ComponentDef[] = [
     num("windowMs", "Window", 1000, { min: 100, max: 60_000, unit: "ms" }),
     num("burstSize", "Burst Size", 50, { min: 1, max: 10_000 }),
   ], {
+    routingBehavior: "throttle",
     layer: "gateway_layer",
     explain: "A bouncer that counts how many requests each user sends and blocks them if they're sending too many too fast.",
     analogy: "Like a theme park ride that only lets a certain number of people on per minute, making the rest wait in line.",
@@ -272,9 +282,11 @@ const COMPONENTS: ComponentDef[] = [
     sel("engine", "Engine", "postgres", [
       "postgres:PostgreSQL", "mysql:MySQL", "aurora:Aurora", "cockroach:CockroachDB",
     ]),
-    REPLICAS, MAX_RPS, LATENCY,
+    num("connectionPoolSize", "Connection Pool", 100, { min: 5, max: 10_000 }),
+    num("avgQueryTimeMs", "Avg Query Time", 5, { min: 1, max: 5000, unit: "ms" }),
+    num("readReplicas", "Read Replicas", 0, { min: 0, max: 20 }),
     num("shards", "Shards", 1, { min: 1, max: 1024 }),
-    MAX_CONN, STORAGE_TB,
+    STORAGE_TB,
     sel("replicationMode", "Replication", "async", [
       "sync:Synchronous", "async:Asynchronous", "semi_sync:Semi-Sync",
     ]),
@@ -283,6 +295,7 @@ const COMPONENTS: ComponentDef[] = [
     ]),
     FAILOVER,
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A structured database that stores data in tables with rows and columns, and guarantees that your data stays consistent even during failures.",
     analogy: "Like a well-organized spreadsheet where every entry follows strict rules, and you can undo mistakes automatically.",
@@ -298,14 +311,16 @@ const COMPONENTS: ComponentDef[] = [
     sel("engine", "Engine", "mongodb", [
       "mongodb:MongoDB", "cassandra:Cassandra", "dynamodb:DynamoDB", "couchbase:Couchbase",
     ]),
-    REPLICAS, MAX_RPS, LATENCY,
+    num("connectionPoolSize", "Connection Pool", 200, { min: 10, max: 50_000 }),
+    num("avgQueryTimeMs", "Avg Query Time", 3, { min: 1, max: 5000, unit: "ms" }),
     num("shards", "Shards", 3, { min: 1, max: 1024 }),
-    MAX_CONN, STORAGE_TB,
+    REPLICAS, STORAGE_TB,
     sel("consistencyLevel", "Consistency", "eventual", [
       "strong:Strong", "eventual:Eventual", "causal:Causal",
     ]),
     FAILOVER,
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A flexible database that doesn't require a fixed table structure, making it great for data that changes shape often or needs to scale massively.",
     analogy: "Like a filing cabinet where each folder can contain different types of documents — no rigid template required.",
@@ -319,11 +334,11 @@ const COMPONENTS: ComponentDef[] = [
 
   comp("object_storage", "Object Storage", "storage", "Blob/file store for unstructured data (S3-like).", [
     STORAGE_TB,
-    num("maxBandwidthGbps", "Bandwidth", 10, { min: 1, max: 100, unit: "Gbps" }),
+    num("avgLatencyMs", "Avg Latency", 50, { min: 10, max: 500, unit: "ms" }),
     num("replicationFactor", "Replication Factor", 3, { min: 1, max: 6 }),
     bool("versioningEnabled", "Versioning", true),
-    LATENCY,
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A massive storage locker for files like images, videos, backups, and documents — think of it as a cloud hard drive built to hold unlimited data.",
     analogy: "Like a self-storage facility where you can rent as many units as you need and retrieve any box by its label.",
@@ -338,8 +353,11 @@ const COMPONENTS: ComponentDef[] = [
   comp("search_index", "Search Index", "storage", "Full-text search engine (Elasticsearch-like).", [
     REPLICAS,
     num("shards", "Shards", 5, { min: 1, max: 100 }),
-    MAX_RPS, LATENCY, STORAGE_TB,
+    num("avgQueryTimeMs", "Avg Query Time", 15, { min: 1, max: 5000, unit: "ms" }),
+    num("connectionPoolSize", "Connection Pool", 50, { min: 5, max: 1000 }),
+    STORAGE_TB,
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A specialized engine that lets you search through text really fast — like the search bar on a shopping site that finds products as you type.",
     analogy: "Like the index at the back of a textbook — instead of reading every page, you look up keywords and jump straight to the right spot.",
@@ -353,8 +371,11 @@ const COMPONENTS: ComponentDef[] = [
 
   comp("graph_database", "Graph Database", "storage", "Relationship-optimized store for connected data.", [
     sel("engine", "Engine", "neo4j", ["neo4j:Neo4j", "neptune:Neptune", "tigergraph:TigerGraph"]),
-    REPLICAS, MAX_RPS, LATENCY, MAX_CONN, STORAGE_TB,
+    num("connectionPoolSize", "Connection Pool", 50, { min: 5, max: 1000 }),
+    num("avgQueryTimeMs", "Avg Query Time", 10, { min: 1, max: 5000, unit: "ms" }),
+    REPLICAS, STORAGE_TB,
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A database built for data that's all about connections — like social networks, recommendation engines, or fraud detection where relationships matter most.",
     analogy: "Like a detective's investigation board with photos connected by strings — the connections between things are just as important as the things themselves.",
@@ -370,9 +391,12 @@ const COMPONENTS: ComponentDef[] = [
     sel("engine", "Engine", "influxdb", [
       "influxdb:InfluxDB", "timescale:TimescaleDB", "prometheus:Prometheus",
     ]),
-    REPLICAS, MAX_RPS, LATENCY,
+    REPLICAS,
+    num("avgWriteTimeMs", "Avg Write Time", 2, { min: 1, max: 500, unit: "ms" }),
+    num("maxConcurrentWrites", "Max Concurrent Writes", 5000, { min: 100, max: 100_000 }),
     num("retentionDays", "Retention", 90, { min: 1, max: 3650, unit: "days" }),
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A database designed for data that arrives with timestamps — like temperature readings, stock prices, or server performance metrics over time.",
     analogy: "Like a fitness tracker that records your heart rate every second and lets you see trends over days, weeks, or months.",
@@ -392,6 +416,7 @@ const COMPONENTS: ComponentDef[] = [
       "parquet:Parquet", "orc:ORC", "avro:Avro", "json:JSON",
     ]),
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A giant raw data dump where you store everything — logs, images, CSVs, JSON — in its original format for later analysis.",
     analogy: "Like a warehouse where you throw all your receipts, photos, and documents into boxes to sort through later.",
@@ -408,9 +433,11 @@ const COMPONENTS: ComponentDef[] = [
       "redshift:Redshift", "bigquery:BigQuery", "snowflake:Snowflake",
     ]),
     num("nodes", "Nodes", 4, { min: 1, max: 128 }),
-    STORAGE_TB, LATENCY,
-    num("queryTimeoutMs", "Query Timeout", 300_000, { min: 1000, max: 3_600_000, unit: "ms" }),
+    STORAGE_TB,
+    num("avgQueryTimeMs", "Avg Query Time", 2000, { min: 100, max: 300_000, unit: "ms" }),
+    num("maxConcurrentQueries", "Max Concurrent Queries", 20, { min: 1, max: 500 }),
   ], {
+    routingBehavior: "passthrough",
     layer: "data_layer",
     explain: "A structured analytics database where cleaned, organized data lives so business teams can run reports and dashboards.",
     analogy: "Like a well-organized library with cataloged books, compared to the data lake which is more like an unsorted pile of documents.",
@@ -430,10 +457,11 @@ const COMPONENTS: ComponentDef[] = [
     sel("evictionPolicy", "Eviction", "lru", [
       "lru:LRU", "lfu:LFU", "random:Random", "ttl:TTL-based",
     ]),
+    num("hitRate", "Cache Hit Rate", 0.85, { min: 0, max: 0.99, step: 0.01 }),
     num("ttlSeconds", "Default TTL", 3600, { min: 1, max: 86_400, unit: "sec" }),
-    MAX_RPS, LATENCY,
     bool("clusterEnabled", "Cluster Mode", false),
   ], {
+    routingBehavior: "filter",
     layer: "data_layer",
     explain: "A super-fast memory store that keeps frequently used data ready to go, so your app doesn't have to hit the slower database every time.",
     analogy: "Like keeping your most-used contacts on speed dial instead of looking them up in the phone book every time.",
@@ -447,10 +475,11 @@ const COMPONENTS: ComponentDef[] = [
 
   comp("cdn", "CDN", "caching", "Edge network caching static assets close to users.", [
     num("edgeLocations", "Edge Locations", 50, { min: 1, max: 500 }),
+    num("cacheHitRate", "Cache Hit Rate", 0.9, { min: 0, max: 0.99, step: 0.01 }),
     num("cacheTtlSeconds", "Cache TTL", 86_400, { min: 60, max: 2_592_000, unit: "sec" }),
-    num("maxBandwidthGbps", "Bandwidth", 100, { min: 1, max: 10_000, unit: "Gbps" }),
-    MAX_RPS, LATENCY,
+    num("originBandwidthGbps", "Origin Bandwidth", 10, { min: 1, max: 100, unit: "Gbps" }),
   ], {
+    routingBehavior: "filter",
     layer: "edge_layer",
     explain: "A network of servers spread around the world that stores copies of your static files (images, videos, CSS) close to where your users are.",
     analogy: "Like a chain of local newsstands that stock copies of a magazine so people don't have to travel to the publisher's headquarters.",
@@ -467,9 +496,10 @@ const COMPONENTS: ComponentDef[] = [
     sel("evictionPolicy", "Eviction", "lru", [
       "lru:LRU", "lfu:LFU", "fifo:FIFO",
     ]),
+    num("hitRate", "Cache Hit Rate", 0.7, { min: 0, max: 0.99, step: 0.01 }),
     num("ttlSeconds", "Default TTL", 300, { min: 1, max: 86_400, unit: "sec" }),
-    MAX_RPS,
   ], {
+    routingBehavior: "filter",
     layer: "data_layer",
     explain: "A small, fast cache that lives inside your application's own memory, avoiding any network calls to fetch frequently used data.",
     analogy: "Like keeping a sticky note on your monitor with today's meeting times instead of opening your calendar app every time.",
@@ -487,12 +517,13 @@ const COMPONENTS: ComponentDef[] = [
     sel("evictionPolicy", "Eviction", "lru", [
       "lru:LRU", "lfu:LFU", "random:Random",
     ]),
+    num("hitRate", "Cache Hit Rate", 0.8, { min: 0, max: 0.99, step: 0.01 }),
     num("ttlSeconds", "Default TTL", 3600, { min: 1, max: 86_400, unit: "sec" }),
     sel("consistencyMode", "Consistency", "eventual", [
       "eventual:Eventual", "strong:Strong",
     ]),
-    MAX_RPS, LATENCY,
   ], {
+    routingBehavior: "filter",
     layer: "data_layer",
     explain: "A shared cache spread across multiple machines, so all your app servers see the same cached data and can handle more of it than one machine's memory allows.",
     analogy: "Like a shared office supply closet that all employees can access, instead of each person keeping supplies at their own desk.",
@@ -509,17 +540,18 @@ const COMPONENTS: ComponentDef[] = [
     sel("engine", "Engine", "rabbitmq", [
       "rabbitmq:RabbitMQ", "sqs:AWS SQS", "activemq:ActiveMQ",
     ]),
-    MAX_RPS,
-    num("maxQueueSize", "Max Queue Size", 100_000, { min: 100, max: 100_000_000 }),
+    num("partitions", "Partitions", 4, { min: 1, max: 1000 }),
+    num("consumerCount", "Consumer Count", 2, { min: 1, max: 1000 }),
+    num("consumerProcessingMs", "Consumer Processing Time", 100, { min: 1, max: 30_000, unit: "ms" }),
+    num("maxQueueDepth", "Max Queue Depth", 100_000, { min: 100, max: 100_000_000 }),
     RETENTION,
     sel("deliveryGuarantee", "Delivery", "at_least_once", [
       "at_most_once:At Most Once",
       "at_least_once:At Least Once",
       "exactly_once:Exactly Once",
     ]),
-    num("consumerGroups", "Consumer Groups", 1, { min: 1, max: 100 }),
-    num("consumerRateRps", "Consumer Rate", 500, { min: 1, max: 1_000_000, unit: "rps" }),
   ], {
+    routingBehavior: "buffer",
     layer: "async_layer",
     explain: "A waiting line for tasks — one part of your system drops a message into the queue, and another part picks it up and processes it when ready.",
     analogy: "Like a to-do list where one person writes tasks and another person works through them at their own pace.",
@@ -534,14 +566,16 @@ const COMPONENTS: ComponentDef[] = [
   comp("event_bus", "Event Bus / Kafka", "messaging", "Distributed event streaming platform for high-throughput.", [
     num("partitions", "Partitions", 12, { min: 1, max: 10_000 }),
     REPLICAS, RETENTION,
-    num("maxThroughputMBps", "Max Throughput", 100, { min: 1, max: 10_000, unit: "MB/s" }),
+    num("consumerGroups", "Consumer Groups", 3, { min: 1, max: 1000 }),
+    num("consumerCount", "Consumers per Group", 3, { min: 1, max: 1000 }),
+    num("consumerProcessingMs", "Consumer Processing Time", 50, { min: 1, max: 30_000, unit: "ms" }),
     sel("deliveryGuarantee", "Delivery", "at_least_once", [
       "at_most_once:At Most Once",
       "at_least_once:At Least Once",
       "exactly_once:Exactly Once",
     ]),
-    num("consumerGroups", "Consumer Groups", 3, { min: 1, max: 1000 }),
   ], {
+    routingBehavior: "buffer",
     layer: "async_layer",
     explain: "A high-speed highway for events that lets many services publish and subscribe to streams of data in real time, built for massive throughput.",
     analogy: "Like a newsroom wire service — reporters file stories, and every newspaper subscribed to the feed gets every story automatically.",
@@ -555,13 +589,14 @@ const COMPONENTS: ComponentDef[] = [
 
   comp("pub_sub", "Pub/Sub", "messaging", "Publish-subscribe messaging for fan-out patterns.", [
     num("maxSubscribers", "Max Subscribers", 1000, { min: 1, max: 1_000_000 }),
-    MAX_RPS,
+    num("consumerProcessingMs", "Subscriber Processing Time", 50, { min: 1, max: 30_000, unit: "ms" }),
     sel("deliveryGuarantee", "Delivery", "at_least_once", [
       "at_most_once:At Most Once",
       "at_least_once:At Least Once",
     ]),
     RETENTION,
   ], {
+    routingBehavior: "buffer",
     layer: "async_layer",
     explain: "A broadcast system where one service publishes a message and every interested subscriber gets a copy, like a group text.",
     analogy: "Like a school intercom — when an announcement is made, every classroom with a speaker hears it.",
@@ -575,10 +610,11 @@ const COMPONENTS: ComponentDef[] = [
 
   comp("stream_processor", "Stream Processor", "messaging", "Real-time event processing (Flink / Spark Streaming).", [
     num("parallelism", "Parallelism", 4, { min: 1, max: 1024 }),
+    num("avgProcessingTimeMs", "Avg Processing Time", 20, { min: 1, max: 30_000, unit: "ms" }),
     num("windowMs", "Window Size", 5000, { min: 100, max: 3_600_000, unit: "ms" }),
     num("checkpointMs", "Checkpoint Interval", 10_000, { min: 1000, max: 600_000, unit: "ms" }),
-    MAX_RPS,
   ], {
+    routingBehavior: "passthrough",
     layer: "async_layer",
     explain: "A real-time data processor that reads events as they arrive and transforms, filters, or aggregates them on the fly.",
     analogy: "Like a factory assembly line where each worker inspects, modifies, or sorts items as they pass by on a conveyor belt.",
@@ -595,8 +631,8 @@ const COMPONENTS: ComponentDef[] = [
     num("maxConnections", "Max Connections", 50_000, { min: 100, max: 10_000_000 }),
     num("heartbeatMs", "Heartbeat Interval", 30_000, { min: 1000, max: 120_000, unit: "ms" }),
     bool("compressionEnabled", "Compression", true),
-    LATENCY,
   ], {
+    routingBehavior: "passthrough",
     layer: "async_layer",
     explain: "A server that keeps a two-way connection open with each client, so both sides can send messages instantly without constantly reconnecting.",
     analogy: "Like a phone call — once connected, both people can talk anytime without redialing, unlike texting where each message is a separate action.",
@@ -609,11 +645,13 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   comp("notification_service", "Notification Service", "messaging", "Push notifications, emails, and SMS delivery.", [
-    REPLICAS, MAX_RPS,
+    REPLICAS,
+    num("avgProcessingTimeMs", "Avg Processing Time", 200, { min: 10, max: 30_000, unit: "ms" }),
+    num("maxConcurrentSends", "Max Concurrent Sends", 100, { min: 1, max: 10_000 }),
     num("retryAttempts", "Retry Attempts", 3, { min: 0, max: 10 }),
     num("batchSize", "Batch Size", 100, { min: 1, max: 10_000 }),
-    LATENCY,
   ], {
+    routingBehavior: "passthrough",
     layer: "async_layer",
     explain: "A service that sends alerts to users through push notifications, emails, or text messages when something important happens.",
     analogy: "Like a postal service that delivers letters, packages, and telegrams — you hand it a message and pick the delivery method.",
@@ -628,8 +666,9 @@ const COMPONENTS: ComponentDef[] = [
   // ─── Infrastructure ──────────────────────────────────
   comp("dns", "DNS", "infrastructure", "Domain name resolution and service discovery.", [
     num("ttlSeconds", "TTL", 300, { min: 1, max: 86_400, unit: "sec" }),
-    FAILOVER, LATENCY,
+    FAILOVER,
   ], {
+    routingBehavior: "none",
     layer: "edge_layer",
     explain: "The internet's phone book — it turns human-friendly names like 'google.com' into the numeric IP addresses that computers use to find each other.",
     analogy: "Like looking up a contact name in your phone to find their actual phone number.",
@@ -646,8 +685,8 @@ const COMPONENTS: ComponentDef[] = [
     bool("circuitBreakerEnabled", "Circuit Breaker", true),
     num("retryAttempts", "Retry Attempts", 3, { min: 0, max: 10 }),
     bool("tracingEnabled", "Tracing", true),
-    LATENCY,
   ], {
+    routingBehavior: "none",
     layer: "service_layer",
     explain: "An invisible networking layer that manages how your microservices talk to each other — handling encryption, retries, and traffic routing automatically.",
     analogy: "Like a telephone switchboard operator who connects calls between office extensions, automatically rerouting if a line is busy.",
@@ -667,6 +706,7 @@ const COMPONENTS: ComponentDef[] = [
     num("minReplicas", "Min Replicas", 2, { min: 1, max: 100 }),
     num("maxReplicas", "Max Replicas", 20, { min: 1, max: 1000 }),
   ], {
+    routingBehavior: "none",
     layer: "service_layer",
     explain: "A system that automatically manages, scales, and heals your applications running in containers — if something crashes, it restarts it automatically.",
     analogy: "Like a building manager who assigns offices to tenants, moves them if a floor floods, and adds more space when the building gets crowded.",
@@ -679,12 +719,12 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   comp("firewall", "Firewall / WAF", "infrastructure", "Filters traffic, blocks attacks, enforces security rules.", [
-    MAX_RPS,
+    num("maxConnections", "Max Connections", 100_000, { min: 1000, max: 10_000_000 }),
     num("rules", "Rule Count", 50, { min: 1, max: 10_000 }),
     sel("defaultAction", "Default Action", "allow", ["allow:Allow", "deny:Deny"]),
     bool("geoBlockEnabled", "Geo Blocking", false),
-    LATENCY,
   ], {
+    routingBehavior: "split",
     layer: "edge_layer",
     explain: "A security guard that inspects every incoming request and blocks anything that looks malicious, like hacking attempts or traffic from banned regions.",
     analogy: "Like airport security screening — everyone must pass through, and anything suspicious gets flagged or rejected.",
@@ -703,6 +743,7 @@ const COMPONENTS: ComponentDef[] = [
       "aes256:AES-256", "rsa:RSA-4096",
     ]),
   ], {
+    routingBehavior: "none",
     layer: "infra_layer",
     explain: "A secure vault that stores passwords, API keys, and other sensitive credentials so they're never hard-coded in your application's source code.",
     analogy: "Like a safety deposit box at a bank — your valuables are locked away and you need proper credentials to access them.",
@@ -719,6 +760,7 @@ const COMPONENTS: ComponentDef[] = [
     num("deregisterTimeoutMs", "Deregister Timeout", 30_000, { min: 5000, max: 300_000, unit: "ms" }),
     FAILOVER,
   ], {
+    routingBehavior: "none",
     layer: "service_layer",
     explain: "A directory that keeps track of which service instances are currently running and where they live, so other services can find them automatically.",
     analogy: "Like a company phone directory that's updated in real time — when someone changes desks, the directory is updated so people can still reach them.",
@@ -736,6 +778,7 @@ const COMPONENTS: ComponentDef[] = [
     num("retentionDays", "Retention", 30, { min: 1, max: 3650, unit: "days" }),
     num("maxTimeSeries", "Max Time Series", 1_000_000, { min: 1000, max: 100_000_000 }),
   ], {
+    routingBehavior: "none",
     layer: "observability_layer",
     explain: "A system that regularly collects performance numbers (CPU usage, request count, error rates) from all your services so you can see trends over time.",
     analogy: "Like a fitness tracker that records your steps, heart rate, and sleep — you can look back and see how things changed over time.",
@@ -752,6 +795,7 @@ const COMPONENTS: ComponentDef[] = [
     bool("indexEnabled", "Full-text Index", true),
     num("maxIngestMBps", "Max Ingest Rate", 50, { min: 1, max: 10_000, unit: "MB/s" }),
   ], {
+    routingBehavior: "none",
     layer: "observability_layer",
     explain: "A centralized place that collects log messages from all your services so you can search through them in one place instead of logging into each server.",
     analogy: "Like a central filing room where copies of every department's paperwork are stored, so you can find any document without visiting each department.",
@@ -768,6 +812,7 @@ const COMPONENTS: ComponentDef[] = [
     num("retentionDays", "Retention", 14, { min: 1, max: 90, unit: "days" }),
     num("maxSpansPerTrace", "Max Spans", 1000, { min: 10, max: 100_000 }),
   ], {
+    routingBehavior: "none",
     layer: "observability_layer",
     explain: "A system that tracks a single user request as it travels through multiple services, showing you exactly where time is spent and where things go wrong.",
     analogy: "Like a package tracking number — you can follow your order from warehouse to truck to local depot to your door, seeing every step.",
@@ -784,6 +829,7 @@ const COMPONENTS: ComponentDef[] = [
     num("rules", "Alert Rules", 20, { min: 1, max: 10_000 }),
     num("cooldownMs", "Cooldown", 300_000, { min: 60_000, max: 3_600_000, unit: "ms" }),
   ], {
+    routingBehavior: "none",
     layer: "observability_layer",
     explain: "A watchdog that monitors your metrics and sends you a notification (Slack, email, PagerDuty) when something goes wrong, like high error rates or a downed server.",
     analogy: "Like a smoke detector — it sits quietly until it detects a problem, then sounds the alarm so you can act fast.",
@@ -800,6 +846,7 @@ const COMPONENTS: ComponentDef[] = [
     num("timeoutMs", "Timeout", 5000, { min: 500, max: 60_000, unit: "ms" }),
     num("unhealthyThreshold", "Unhealthy After", 3, { min: 1, max: 10, unit: "failures" }),
   ], {
+    routingBehavior: "none",
     layer: "observability_layer",
     explain: "A heartbeat test that regularly pokes each service to see if it's alive and ready to handle traffic, removing unhealthy ones from rotation.",
     analogy: "Like a teacher taking attendance — if a student doesn't answer, they're marked absent and someone follows up.",
@@ -815,6 +862,7 @@ const COMPONENTS: ComponentDef[] = [
     num("refreshIntervalMs", "Refresh Interval", 30_000, { min: 5000, max: 300_000, unit: "ms" }),
     bool("publicEnabled", "Public Access", true),
   ], {
+    routingBehavior: "none",
     layer: "observability_layer",
     explain: "A public webpage that shows your users whether your system is up, having issues, or undergoing maintenance — so they know it's not just them.",
     analogy: "Like a restaurant putting a sign in the window saying 'Open', 'Closed for renovation', or 'Limited menu today'.",

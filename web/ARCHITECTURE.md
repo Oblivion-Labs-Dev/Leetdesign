@@ -1,5 +1,9 @@
 # Leetdesign — Code Architecture
 
+> **Note (2026-07):** This file describes the **original MVP** pipeline/journey loop.
+> The **active architecture simulator** (`web/src/lib/simulator/`) is documented in
+> [`docs/`](../docs/README.md) — start with [AGENT-HANDOFF.md](../docs/AGENT-HANDOFF.md).
+
 This document explains how the Leetdesign MVP code is organized and how each part
 maps to the master design doc (`docs/MASTER_DESIGN_DOC.md`).
 

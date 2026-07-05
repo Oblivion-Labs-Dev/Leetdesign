@@ -1,6 +1,8 @@
 import type { SimComponentType, EdgeProtocol, SimDesign } from "../types";
 import { uid } from "../types";
 import { COMPONENT_REGISTRY } from "../component-registry";
+import { suggestEdgeProtocol } from "../traffic-contracts";
+import type { AcceptanceCriteria } from "../evaluator";
 
 export type LearningMode = "beginner" | "interview" | "sandbox";
 
@@ -100,7 +102,9 @@ export interface CourseMilestone {
   tradeoffs: TradeoffSet;
   evolutionLabel: string;
   checklist: string[];
-  /** Returns true when learner has added the required architecture */
+  /** Runtime metric-based acceptance criteria — replaces static architecture checks */
+  acceptanceCriteria?: AcceptanceCriteria;
+  /** @deprecated Use acceptanceCriteria instead. Kept for backward compat during migration. */
   validateArchitecture?: (design: SimDesign) => boolean;
 }
 
@@ -151,12 +155,19 @@ export function snapshotToDesign(
       const source = labelToId.get(e.sourceLabel);
       const target = labelToId.get(e.targetLabel);
       if (!source || !target) return null;
+      const sourceNode = nodes.find((n) => n.id === source);
+      const targetNode = nodes.find((n) => n.id === target);
+      const protocol: EdgeProtocol = e.protocol ?? (
+        sourceNode && targetNode
+          ? suggestEdgeProtocol(sourceNode.type, targetNode.type)
+          : "http"
+      );
       return {
         id: `e_${uid()}`,
         source,
         target,
-        protocol: e.protocol ?? ("http" as EdgeProtocol),
-        config: { bandwidthMbps: 1000, latencyMs: 1, encrypted: false },
+        protocol,
+        config: { bandwidthMbps: 1000, latencyMs: 1, encrypted: false, weight: 1 },
       };
     })
     .filter(Boolean) as SimDesign["edges"];
@@ -164,7 +175,14 @@ export function snapshotToDesign(
   if (snapshot.trafficRps != null) {
     const client = nodes.find((n) => n.type === "client");
     if (client) {
-      client.config = { ...client.config, requestsPerSecond: snapshot.trafficRps };
+      const users = 1000;
+      client.config = {
+        ...client.config,
+        activeUsers: users,
+        requestsPerUserPerSecond: snapshot.trafficRps / users,
+        userActivityPreset: "custom",
+        requestsPerSecond: snapshot.trafficRps,
+      };
     }
   }
 

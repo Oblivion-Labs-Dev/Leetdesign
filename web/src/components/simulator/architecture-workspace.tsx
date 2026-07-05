@@ -9,7 +9,7 @@ import { WorkspaceTopbar } from "./workspace-topbar";
 import { ComponentRail } from "./component-rail";
 import { ComponentShelf } from "./component-shelf";
 import { SimulatorCanvas } from "./simulator-canvas";
-import { CourseGuidePanel } from "./course-guide-panel";
+import { CourseSidePanel } from "./course-side-panel";
 import { CourseEvolutionTimeline } from "./course-evolution-timeline";
 import { ContextInspector, SelectionInspector } from "./context-inspector";
 import { MissionDock } from "./mission-dock";
@@ -72,7 +72,7 @@ export function ArchitectureWorkspace() {
 
         <div className="flex min-h-0 shrink-0">
           {isCourse && (selectedNodeId || selectedEdgeId) && <SelectionInspector />}
-          {isCourse ? <CourseGuidePanel /> : <ContextInspector />}
+          {isCourse ? <CourseSidePanel /> : <ContextInspector />}
         </div>
       </div>
     </div>
