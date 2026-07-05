@@ -53,7 +53,6 @@ export function CanvasContextMenu({ x, y, onSelect, onClose }: CanvasContextMenu
 
   const filteredCategories = CATEGORIES.map((cat) => {
     const items = cat.types
-      .filter((t) => t !== "client")
       .filter((t) => {
         if (!query) return true;
         const def = COMPONENT_REGISTRY[t];

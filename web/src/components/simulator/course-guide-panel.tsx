@@ -108,14 +108,32 @@ export function CourseGuidePanel() {
     markAfterSimulationRun();
   }, [running, progress?.phase]);
 
-  // Learner action validation — check at any phase after failure starts
-  // If the user proactively fixes the architecture, let them skip ahead
-  const alreadySolved = milestone?.validateArchitecture && design
-    ? milestone.validateArchitecture(design)
-    : false;
+  // Learner action validation — use acceptance criteria from evaluator
+  // If the user proactively fixes the architecture and simulation passes, let them skip ahead
+  const alreadySolved = (() => {
+    if (!milestone?.acceptanceCriteria || !design || !running) return false;
+    // Check if system is healthy and handling the required RPS
+    if (systemHealth !== "healthy" && systemHealth !== "degraded") return false;
+    const metrics = useSimulationStore.getState().metrics;
+    let totalErrors = 0;
+    let maxP95 = 0;
+    let nodeCount = 0;
+    for (const node of design.nodes) {
+      const m = metrics[node.id];
+      if (!m || node.type === "client") continue;
+      nodeCount++;
+      totalErrors += m.errorRate;
+      if (m.p95LatencyMs > maxP95) maxP95 = m.p95LatencyMs;
+    }
+    const avgError = nodeCount > 0 ? totalErrors / nodeCount : 0;
+    const criteria = milestone.acceptanceCriteria;
+    return maxP95 <= criteria.maxP95LatencyMs &&
+      avgError <= criteria.maxErrorRate &&
+      totalRps >= criteria.minHandledRps;
+  })();
 
   useEffect(() => {
-    if (!progress || !milestone?.validateArchitecture || !design || !alreadySolved) return;
+    if (!progress || !milestone?.acceptanceCriteria || !design || !alreadySolved) return;
 
     const skipPhases = ["failure", "reflection", "suggested_solution", "learner_action"];
     if (!skipPhases.includes(progress.phase)) return;

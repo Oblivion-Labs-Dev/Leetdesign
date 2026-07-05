@@ -7,6 +7,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { useSimulationStore } from "@/lib/simulator/store";
+import { violationForEdge } from "@/lib/simulator/traffic-contracts";
 import type { EdgeProtocol } from "@/lib/simulator/types";
 
 const PROTOCOL_STYLES: Record<EdgeProtocol, { label: string; color: string }> = {
@@ -16,6 +17,9 @@ const PROTOCOL_STYLES: Record<EdgeProtocol, { label: string; color: string }> = 
   websocket: { label: "WS", color: "#8b5cf6" },
   async:     { label: "ASYNC", color: "#f59e0b" },
 };
+
+/** Invisible stroke width for edge selection hit area (visible line stays thin) */
+const EDGE_HIT_WIDTH = 32;
 
 function SimEdgeInner(props: EdgeProps) {
   const {
@@ -32,6 +36,11 @@ function SimEdgeInner(props: EdgeProps) {
   } = props;
 
   const running = useSimulationStore((s) => s.running);
+  const edgeFlowRps = useSimulationStore((s) => s.edgeFlowRps[id]);
+  const architectureViolations = useSimulationStore((s) => s.architectureViolations);
+  const violation = violationForEdge(architectureViolations, id);
+  const isArchError = violation?.severity === "error";
+  const isArchWarning = violation?.severity === "warning";
   const sourceMetrics = useSimulationStore((s) => s.metrics[source]);
   const targetMetrics = useSimulationStore((s) => s.metrics[target]);
   const protocol = ((props.data as Record<string, unknown>)?.protocol as EdgeProtocol) ?? "http";
@@ -41,7 +50,7 @@ function SimEdgeInner(props: EdgeProps) {
   const ps = PROTOCOL_STYLES[protocol];
   const isAsync = protocol === "async";
 
-  const rps = sourceMetrics?.currentRps ?? targetMetrics?.currentRps ?? 0;
+  const rps = edgeFlowRps ?? targetMetrics?.currentRps ?? 0;
   const sourceHealth = sourceMetrics?.health ?? "healthy";
   const targetHealth = targetMetrics?.health ?? "healthy";
 
@@ -88,13 +97,18 @@ function SimEdgeInner(props: EdgeProps) {
 
   const lineColor = selected
     ? ps.color
-    : isPathDead
-      ? "var(--clay-border)"
-      : targetHealth === "down"
-        ? "#dc262640"
-        : "var(--clay-border-strong)";
+    : isArchError
+      ? "#dc2626"
+      : isArchWarning
+        ? "#f59e0b"
+        : isPathDead
+          ? "var(--clay-border)"
+          : targetHealth === "down"
+            ? "#dc262640"
+            : "var(--clay-border-strong)";
 
   const lineOpacity = isPathDead ? 0.3 : dimmed ? 0.25 : 1;
+  const archDash = isArchError || isArchWarning ? "5 4" : isAsync ? "6 3" : undefined;
 
   return (
     <>
@@ -106,7 +120,7 @@ function SimEdgeInner(props: EdgeProps) {
         </circle>
       </defs>
 
-      {/* Main path — no arrow marker */}
+      {/* Main path — visual only; clicks handled by interaction layer below */}
       <path
         id={id}
         d={edgePath}
@@ -117,12 +131,14 @@ function SimEdgeInner(props: EdgeProps) {
           highlighted ? strokeWidth + 0.6 :
           selected ? strokeWidth + 0.8 : strokeWidth
         }
-        strokeDasharray={isAsync ? "6 3" : undefined}
+        strokeDasharray={archDash}
         strokeLinecap="round"
         opacity={lineOpacity}
+        className="react-flow__edge-path"
         style={{
           filter: traceActive || highlighted ? "drop-shadow(0 0 4px rgba(107,140,174,0.4))" : selected ? `drop-shadow(0 0 6px ${ps.color}60)` : undefined,
           transition: "stroke 0.3s, stroke-width 0.3s, opacity 0.3s",
+          pointerEvents: "none",
         }}
       />
 
@@ -133,14 +149,14 @@ function SimEdgeInner(props: EdgeProps) {
         r={selected ? 3.5 : 2.5}
         fill={selected ? ps.color : lineColor}
         opacity={lineOpacity}
-        style={{ transition: "fill 0.3s, r 0.3s" }}
+        style={{ transition: "fill 0.3s, r 0.3s", pointerEvents: "none" }}
       />
 
       {/* Animated flowing dots */}
       {running && flowIntensity > 0 && !isPathDead && (
         <>
           {Array.from({ length: Math.min(flowIntensity, 4) }).map((_, i) => (
-            <use key={i} href={`#${edgeId}-dot`}>
+            <use key={i} href={`#${edgeId}-dot`} style={{ pointerEvents: "none" }}>
               <animateMotion
                 dur={`${animDuration}s`}
                 repeatCount="indefinite"
@@ -153,15 +169,27 @@ function SimEdgeInner(props: EdgeProps) {
       )}
 
       {traceActive && (
-        <use href={`#${edgeId}-dot`}>
+        <use href={`#${edgeId}-dot`} style={{ pointerEvents: "none" }}>
           <animateMotion dur="1.2s" repeatCount="indefinite" path={edgePath} />
         </use>
       )}
 
+      {/* Wide invisible stroke on top — must use opaque color + 0 opacity for SVG hit testing */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="#000"
+        strokeOpacity={0}
+        strokeWidth={EDGE_HIT_WIDTH}
+        strokeLinecap="round"
+        className="react-flow__edge-interaction"
+        style={{ cursor: "pointer", pointerEvents: "stroke" }}
+      />
+
       {/* Protocol label */}
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan pointer-events-auto"
+          className="nodrag nopan pointer-events-none"
           style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
@@ -170,11 +198,34 @@ function SimEdgeInner(props: EdgeProps) {
           <div
             className="flex items-center gap-1 rounded px-1.5 py-[2px] backdrop-blur-sm transition-all"
             style={{
-              background: selected ? `${ps.color}20` : "var(--clay-surface)",
-              border: `1px solid ${selected ? `${ps.color}40` : "var(--clay-border)"}`,
+              background: isArchError
+                ? "#dc262615"
+                : isArchWarning
+                  ? "#f59e0b15"
+                  : selected
+                    ? `${ps.color}20`
+                    : "var(--clay-surface)",
+              border: `1px solid ${
+                isArchError
+                  ? "#dc262640"
+                  : isArchWarning
+                    ? "#f59e0b40"
+                    : selected
+                      ? `${ps.color}40`
+                      : "var(--clay-border)"
+              }`,
               opacity: isPathDead ? 0.3 : 1,
             }}
           >
+            {violation && (
+              <span
+                className="text-[7px] font-bold uppercase tracking-[0.1em]"
+                style={{ color: isArchError ? "#dc2626" : "#f59e0b" }}
+                title={violation.message}
+              >
+                {isArchError ? "ERR" : "!"}
+              </span>
+            )}
             <span
               className="text-[7px] font-bold uppercase tracking-[0.15em]"
               style={{ color: selected ? ps.color : "var(--clay-text-subtle)" }}
@@ -183,7 +234,7 @@ function SimEdgeInner(props: EdgeProps) {
             </span>
             {running && rps > 0 && !isPathDead && (
               <span className="text-[7px] font-mono tabular-nums text-[var(--clay-text-subtle)]">
-                {rps > 999 ? `${(rps / 1000).toFixed(1)}k` : rps}
+                {rps > 999 ? `${(rps / 1000).toFixed(1)}k` : Math.round(rps).toLocaleString("en-US")}
               </span>
             )}
           </div>

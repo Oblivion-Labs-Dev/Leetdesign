@@ -132,8 +132,8 @@ export function IncidentCoach() {
   if (!running || !incident || !design || dismissed) return null;
 
   const Icon = SIM_ICON_MAP[incident.primary.type];
-  const capacity = ((incident.primary.config.maxRps as number) ?? 1000) * ((incident.primary.config.replicas as number) ?? 1);
-  const isKilled = capacity === 0;
+  const maxConcurrent = (incident.primary.config.maxConcurrentReqs as number) ?? (incident.primary.config.connectionPoolSize as number) ?? 200;
+  const isKilled = maxConcurrent === 0;
 
   const addReplica = () => {
     const replicas = (incident.primary.config.replicas as number) ?? 1;
@@ -142,7 +142,7 @@ export function IncidentCoach() {
   };
 
   const restoreNode = () => {
-    updateNodeConfig(incident.primary.id, "maxRps", 1000);
+    updateNodeConfig(incident.primary.id, "maxConcurrentReqs", 200);
     selectNode(incident.primary.id);
   };
 

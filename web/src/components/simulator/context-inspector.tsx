@@ -32,6 +32,7 @@ import { useCourseStore } from "@/lib/simulator/course-store";
 import { computeBlastRadius } from "@/lib/simulator/topology";
 import type { EdgeProtocol, SimHealth } from "@/lib/simulator/types";
 import { ConfigInspector } from "./config-inspector";
+import { DependencyEdgeInspector, isDependencyEdge } from "./dependency-edge-inspector";
 import { cn } from "@/lib/utils";
 
 const LAYER_HINTS = [
@@ -341,6 +342,11 @@ function EdgeInspector() {
 
   const source = design.nodes.find((n) => n.id === edge.source);
   const target = design.nodes.find((n) => n.id === edge.target);
+
+  if (isDependencyEdge(source?.type, target?.type)) {
+    return <DependencyEdgeInspector />;
+  }
+
   const info = PROTOCOL_INFO[edge.protocol];
   const srcMetrics = metrics[edge.source];
   const tgtMetrics = metrics[edge.target];
@@ -477,7 +483,14 @@ function RunInspectorPanel() {
       </button>
 
       {primary && (
-        <IncidentActions nodeId={primary.node.id} health={primary.m.health} reason={primary.m.diagnosisReason} suggestion={primary.m.diagnosisSuggestion} />
+        <button
+          type="button"
+          onClick={() => useDesignStore.getState().selectNode(primary.node.id)}
+          className="mt-3 w-full rounded-lg border border-[var(--clay-border)] bg-[var(--clay-surface)] px-3 py-2 text-left text-[11px] text-[var(--clay-text-muted)] hover:bg-[var(--clay-surface-2)]"
+        >
+          <span className="font-medium text-[var(--clay-text)]">{primary.node.label}</span>
+          {" "}needs attention — click to inspect
+        </button>
       )}
     </section>
   );
@@ -532,7 +545,7 @@ function IncidentActions({
           <button
             type="button"
             onClick={() => {
-              updateNodeConfig(nodeId, "maxRps", 500);
+              updateNodeConfig(nodeId, "replicas", ((node?.config.replicas as number) ?? 1) + 1);
               markIncidentRecovered();
             }}
             className="inline-flex items-center gap-1 rounded-lg border border-[var(--clay-border)] px-2 py-1 text-[10px] font-semibold"

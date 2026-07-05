@@ -76,6 +76,10 @@ export interface SimEdge {
     bandwidthMbps: number;
     latencyMs: number;
     encrypted: boolean;
+    /** Load balancer weighted routing — relative share to this backend */
+    weight: number;
+    /** Application Server → downstream dependency settings */
+    [key: string]: string | number | boolean;
   };
 }
 
@@ -112,6 +116,8 @@ export interface RuntimeMetrics {
   p99LatencyMs: number;
   health: SimHealth;
   errorRate: number;
+  /** 0–100% of derived capacity — drives the load bar on canvas nodes */
+  utilizationPercent: number;
   cpuPercent: number;
   memoryPercent: number;
   queueDepth: number;
@@ -121,6 +127,46 @@ export interface RuntimeMetrics {
   errorHistory: number[];
   diagnosisReason: string;
   diagnosisSuggestion: string;
+  /** Application Server: RPS completed successfully */
+  completedRps?: number;
+  /** Application Server: derived total capacity (read-only) */
+  totalCapacityRps?: number;
+  /** Application Server: replica count for node card */
+  instanceCount?: number;
+  /** Application Server: instances actually receiving traffic */
+  effectiveInstanceCount?: number;
+  /** Application Server: in-flight request count */
+  activeRequests?: number;
+  /** Application Server: capacity derivation breakdown for UI */
+  derivedCapacityBreakdown?: {
+    maxConcurrentPerInstance: number;
+    effectiveInstanceCount: number;
+    effectiveRequestTimeMs: number;
+    capacityPerInstanceRps: number;
+  };
+  /** Application Server pool: healthy replicas (≤ configuredInstanceCount) */
+  healthyInstanceCount?: number;
+  /** Application Server pool: incoming RPS ÷ healthy instances */
+  perInstanceRps?: number;
+  /** Application Server pool: derived capacity per healthy instance */
+  derivedCapacityPerInstanceRps?: number;
+  /** Application Server pool: healthy instances × derived capacity per instance */
+  poolCapacityRps?: number;
+  /** Application Server pool: incoming ÷ pool capacity (0–100) */
+  poolUtilizationPercent?: number;
+  /** Load Balancer: traffic distribution snapshot */
+  loadBalancerDistribution?: {
+    incomingRps: number;
+    healthyTargetPools: number;
+    algorithm: string;
+    distributions: Array<{
+      targetId: string;
+      label: string;
+      rps: number;
+      percent: number;
+      healthy: boolean;
+    }>;
+  };
 }
 
 export interface ConfigFieldDef {
@@ -146,12 +192,32 @@ export type ArchLayer =
   | "infra_layer"
   | "observability_layer";
 
+/**
+ * How a component routes traffic downstream in the simulation engine.
+ * - split: divides incoming traffic evenly among downstream targets (LB, API Gateway)
+ * - filter: absorbs a fraction (hit rate), forwards the rest (Cache, CDN)
+ * - throttle: caps traffic at a configured limit, drops excess (Rate Limiter)
+ * - buffer: absorbs bursts into a queue, drains at consumer rate (Message Queue)
+ * - passthrough: processes traffic and responds; does NOT forward unless wired (App Server, DB)
+ * - source: generates traffic (Client)
+ * - none: does not participate in traffic simulation (observability, infra)
+ */
+export type RoutingBehavior =
+  | "split"
+  | "filter"
+  | "throttle"
+  | "buffer"
+  | "passthrough"
+  | "source"
+  | "none";
+
 export interface ComponentDef {
   type: SimComponentType;
   label: string;
   category: ComponentCategory;
   description: string;
   layer: ArchLayer;
+  routingBehavior: RoutingBehavior;
   /** One-sentence explanation for absolute beginners */
   explain: string;
   /** Real-world analogy everyone can relate to */
@@ -192,6 +258,7 @@ export const DEFAULT_EDGE_CONFIG: SimEdge["config"] = {
   bandwidthMbps: 1000,
   latencyMs: 1,
   encrypted: false,
+  weight: 1,
 };
 
 export function createDesign(name: string, description = ""): SimDesign {

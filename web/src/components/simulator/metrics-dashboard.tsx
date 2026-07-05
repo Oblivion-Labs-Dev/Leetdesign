@@ -4,7 +4,7 @@ import { Skull, ZapOff, Flame, AlertTriangle, Activity, ShieldAlert, Wrench } fr
 import { useDesignStore } from "@/lib/simulator/store";
 import { useSimulationStore } from "@/lib/simulator/store";
 import { useTeachingStore } from "@/lib/simulator/teaching-store";
-import { resetEngine } from "@/lib/simulator/engine";
+import { restartSimulationFlow } from "@/lib/simulator/engine";
 import { COMPONENT_REGISTRY, SIM_ICON_MAP } from "@/lib/simulator/component-registry";
 import type { SimHealth } from "@/lib/simulator/types";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ export function MetricsDashboard() {
   const degraded = nodesWithMetrics.filter((x) => x.metrics.health !== "healthy");
   const HealthIcon = HEALTH_ICON[systemHealth];
 
-  const killNode = (id: string) => updateNodeConfig(id, "maxRps", 0);
+  const killNode = (id: string) => updateNodeConfig(id, "maxConcurrentReqs", 0);
 
   const spikeTraffic = () => {
     markSpikeTriggered();
@@ -94,10 +94,10 @@ export function MetricsDashboard() {
           </button>
           <button
             type="button"
-            onClick={() => resetEngine()}
+            onClick={() => restartSimulationFlow()}
             className="inline-flex items-center gap-1 rounded-lg border border-[var(--clay-border)] px-2.5 py-1 text-[10px] font-semibold text-[var(--clay-text-subtle)] transition-colors hover:bg-[var(--clay-surface-2)] hover:text-[var(--clay-text)]"
           >
-            <ZapOff className="h-3 w-3" /> Reset
+            <ZapOff className="h-3 w-3" /> Restart flow
           </button>
         </div>
       </div>

@@ -69,7 +69,7 @@ export const ECOMMERCE_FLASH_SALE: ScenarioDef = {
       title: "Fix the incident",
       instruction:
         "When something breaks, open the Incident Coach. Highlight blast radius, then scale replicas or restore a killed node.",
-      hint: 'Try "Add replica" on an overloaded service, or restore maxRps if a node was killed.',
+      hint: 'Try "Add replica" on an overloaded service, or adjust processing time on a degraded node.',
       check: (ctx) => ctx.incidentRecovered,
     },
   ],

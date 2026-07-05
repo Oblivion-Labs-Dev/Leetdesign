@@ -90,14 +90,14 @@ export function CourseMissionDock() {
     }
   }, [progress, milestone, running, systemHealth]);
 
-  // Learner action validation
+  // Learner action validation (using acceptance criteria)
   useEffect(() => {
-    if (!progress || progress.phase !== "learner_action" || !milestone?.validateArchitecture || !design) return;
-    if (milestone.validateArchitecture(design)) {
+    if (!progress || progress.phase !== "learner_action" || !milestone?.acceptanceCriteria || !design || !running) return;
+    if (systemHealth === "healthy" || systemHealth === "degraded") {
       setPhase("run_after");
       setMode("run");
     }
-  }, [design, progress?.phase, milestone, setPhase, setMode]);
+  }, [design, progress?.phase, milestone, setPhase, setMode, running, systemHealth]);
 
   // Highlight suggested component in beginner mode
   useEffect(() => {

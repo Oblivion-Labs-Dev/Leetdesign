@@ -42,3 +42,5 @@ next-env.d.ts
 
 # local dev state (profile + progress)
 .data/
+
+/src/generated/prisma
