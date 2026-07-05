@@ -50,21 +50,23 @@ function SimEdgeInner(props: EdgeProps) {
   const ps = PROTOCOL_STYLES[protocol];
   const isAsync = protocol === "async";
 
-  const rps = edgeFlowRps ?? targetMetrics?.currentRps ?? 0;
+  const rps = running
+    ? (edgeFlowRps ?? 0)
+    : (edgeFlowRps ?? targetMetrics?.currentRps ?? 0);
   const sourceHealth = sourceMetrics?.health ?? "healthy";
   const targetHealth = targetMetrics?.health ?? "healthy";
 
   const isSourceDown = sourceHealth === "down";
   const sourceRps = sourceMetrics?.currentRps ?? 0;
-  const isSourceStarved = sourceRps === 0 && sourceHealth !== "healthy";
+  const isSourceIdle = running && sourceRps === 0;
 
   const flowIntensity = useMemo(() => {
-    if (!running || rps === 0 || isSourceDown || isSourceStarved) return 0;
+    if (!running || rps === 0 || isSourceDown || isSourceIdle) return 0;
     if (rps < 50) return 1;
     if (rps < 200) return 2;
     if (rps < 1000) return 3;
     return 4;
-  }, [running, rps, isSourceDown, isSourceStarved]);
+  }, [running, rps, isSourceDown, isSourceIdle]);
 
   const strokeWidth = useMemo(() => {
     if (!running || flowIntensity === 0) return 1.2;
@@ -93,7 +95,7 @@ function SimEdgeInner(props: EdgeProps) {
     ? Math.max(0.5, 2.5 - flowIntensity * 0.4)
     : 0;
 
-  const isPathDead = isSourceDown || isSourceStarved;
+  const isPathDead = isSourceDown || isSourceIdle;
 
   const lineColor = selected
     ? ps.color

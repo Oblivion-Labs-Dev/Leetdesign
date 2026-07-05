@@ -129,6 +129,8 @@ export interface RuntimeMetrics {
   diagnosisSuggestion: string;
   /** Application Server: RPS completed successfully */
   completedRps?: number;
+  /** Attempted arrivals at component boundary (when different from currentRps) */
+  incomingRps?: number;
   /** Application Server: derived total capacity (read-only) */
   totalCapacityRps?: number;
   /** Application Server: replica count for node card */
@@ -157,16 +159,28 @@ export interface RuntimeMetrics {
   /** Load Balancer: traffic distribution snapshot */
   loadBalancerDistribution?: {
     incomingRps: number;
+    outgoingRps: number;
+    rejectedRps: number;
     healthyTargetPools: number;
+    totalTargetPools: number;
     algorithm: string;
+    routingStatus: "idle" | "healthy" | "reduced_targets" | "no_healthy_targets" | "throughput_limited";
+    distributionKind: "idle" | "single_target" | "even" | "weighted" | "uneven" | "reduced_capacity";
+    statusTitle: string;
+    statusMessage: string;
+    distributionLabel: string;
     distributions: Array<{
       targetId: string;
       label: string;
       rps: number;
       percent: number;
       healthy: boolean;
+      health: SimHealth;
+      healthLabel: string;
     }>;
   };
+  /** Database cluster: live metrics snapshot */
+  databaseMetrics?: import("./database-model").DatabaseMetricsSnapshot;
 }
 
 export interface ConfigFieldDef {

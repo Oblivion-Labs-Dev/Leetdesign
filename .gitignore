@@ -8,9 +8,6 @@ Thumbs.db
 
 # Web app handles its own .gitignore inside ./web
 
-# Local design artifacts (do not publish)
-docs/
-
 # Local SQLite databases (never commit personal/test data)
 **/prisma/*.db
 **/prisma/*.db-journal

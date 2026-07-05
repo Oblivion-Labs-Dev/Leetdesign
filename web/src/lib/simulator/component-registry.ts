@@ -52,6 +52,10 @@ import type {
 } from "./types";
 import { clientConfigToStorage, DEFAULT_CLIENT_TRAFFIC } from "./client-traffic";
 import { appServerConfigToStorage, DEFAULT_APP_SERVER } from "./app-server-model";
+import {
+  databaseConfigToStorage,
+  defaultDatabaseConfig,
+} from "./database-model";
 
 // ── helpers ────────────────────────────────────────────────────────
 
@@ -176,17 +180,17 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   comp("load_balancer", "Load Balancer", "core", "Distributes traffic across service pools for scale and availability.", [
-    REPLICAS,
+    num("replicas", "Load Balancer Replicas", 1, { min: 1, max: 100 }),
     sel("algorithm", "Routing Algorithm", "round_robin", [
       "round_robin:Round Robin",
-      "weighted:Weighted Round Robin",
+      "weighted_round_robin:Weighted Round Robin",
       "least_connections:Least Connections",
       "least_response_time:Least Response Time",
       "path_based:Path-based Routing",
-      "header_based:Header-based Routing",
-      "ip_hash:IP Hash (sticky)",
     ]),
-    MAX_CONN,
+    num("maxConnections", "Maximum Concurrent Connections", 10_000, { min: 10, max: 1_000_000 }),
+    num("maxRoutingThroughputRps", "Maximum Routing Throughput", 10_000, { min: 100, max: 1_000_000, unit: "RPS" }),
+    num("baseRoutingLatencyMs", "Base Routing Latency", 1, { min: 0.1, max: 50, step: 0.1, unit: "ms" }),
     num("healthCheckMs", "Health Check Interval", 5000, { min: 500, max: 60_000, unit: "ms" }),
     bool("stickySession", "Sticky Sessions", false),
   ], {
@@ -278,25 +282,10 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   // ─── Storage ─────────────────────────────────────────
-  comp("sql_database", "SQL Database", "storage", "Relational database with ACID transactions.", [
-    sel("engine", "Engine", "postgres", [
-      "postgres:PostgreSQL", "mysql:MySQL", "aurora:Aurora", "cockroach:CockroachDB",
-    ]),
-    num("connectionPoolSize", "Connection Pool", 100, { min: 5, max: 10_000 }),
-    num("avgQueryTimeMs", "Avg Query Time", 5, { min: 1, max: 5000, unit: "ms" }),
-    num("readReplicas", "Read Replicas", 0, { min: 0, max: 20 }),
-    num("shards", "Shards", 1, { min: 1, max: 1024 }),
-    STORAGE_TB,
-    sel("replicationMode", "Replication", "async", [
-      "sync:Synchronous", "async:Asynchronous", "semi_sync:Semi-Sync",
-    ]),
-    sel("consistencyLevel", "Consistency", "strong", [
-      "strong:Strong", "eventual:Eventual", "causal:Causal",
-    ]),
-    FAILOVER,
-  ], {
+  comp("sql_database", "SQL Database", "storage", "Relational database cluster with ACID transactions.", [], {
     routingBehavior: "passthrough",
     layer: "data_layer",
+    defaultConfig: databaseConfigToStorage(defaultDatabaseConfig("sql_database")),
     explain: "A structured database that stores data in tables with rows and columns, and guarantees that your data stays consistent even during failures.",
     analogy: "Like a well-organized spreadsheet where every entry follows strict rules, and you can undo mistakes automatically.",
     whenToUse: "When your data has clear relationships (like users, orders, and products) and you need guarantees that transactions either fully succeed or fully roll back.",
@@ -307,21 +296,10 @@ const COMPONENTS: ComponentDef[] = [
     ],
   }),
 
-  comp("nosql_database", "NoSQL Database", "storage", "Flexible schema store optimized for scale.", [
-    sel("engine", "Engine", "mongodb", [
-      "mongodb:MongoDB", "cassandra:Cassandra", "dynamodb:DynamoDB", "couchbase:Couchbase",
-    ]),
-    num("connectionPoolSize", "Connection Pool", 200, { min: 10, max: 50_000 }),
-    num("avgQueryTimeMs", "Avg Query Time", 3, { min: 1, max: 5000, unit: "ms" }),
-    num("shards", "Shards", 3, { min: 1, max: 1024 }),
-    REPLICAS, STORAGE_TB,
-    sel("consistencyLevel", "Consistency", "eventual", [
-      "strong:Strong", "eventual:Eventual", "causal:Causal",
-    ]),
-    FAILOVER,
-  ], {
+  comp("nosql_database", "Document Database", "storage", "Flexible schema store optimized for scale.", [], {
     routingBehavior: "passthrough",
     layer: "data_layer",
+    defaultConfig: databaseConfigToStorage(defaultDatabaseConfig("nosql_database")),
     explain: "A flexible database that doesn't require a fixed table structure, making it great for data that changes shape often or needs to scale massively.",
     analogy: "Like a filing cabinet where each folder can contain different types of documents — no rigid template required.",
     whenToUse: "When your data doesn't fit neatly into tables, you need to handle huge volumes, or your data model changes frequently.",
@@ -350,15 +328,10 @@ const COMPONENTS: ComponentDef[] = [
     ],
   }),
 
-  comp("search_index", "Search Index", "storage", "Full-text search engine (Elasticsearch-like).", [
-    REPLICAS,
-    num("shards", "Shards", 5, { min: 1, max: 100 }),
-    num("avgQueryTimeMs", "Avg Query Time", 15, { min: 1, max: 5000, unit: "ms" }),
-    num("connectionPoolSize", "Connection Pool", 50, { min: 5, max: 1000 }),
-    STORAGE_TB,
-  ], {
+  comp("search_index", "Search Index", "storage", "Full-text search engine (Elasticsearch-like).", [], {
     routingBehavior: "passthrough",
     layer: "data_layer",
+    defaultConfig: databaseConfigToStorage(defaultDatabaseConfig("search_index")),
     explain: "A specialized engine that lets you search through text really fast — like the search bar on a shopping site that finds products as you type.",
     analogy: "Like the index at the back of a textbook — instead of reading every page, you look up keywords and jump straight to the right spot.",
     whenToUse: "When users need to search through large amounts of text, like product catalogs, articles, or log files.",
@@ -450,19 +423,10 @@ const COMPONENTS: ComponentDef[] = [
   }),
 
   // ─── Caching ─────────────────────────────────────────
-  comp("redis_cache", "In-Memory Cache", "caching", "Fast key-value store for hot data (Redis/Memcached).", [
-    sel("engine", "Engine", "redis", ["redis:Redis", "memcached:Memcached"]),
-    REPLICAS,
-    num("maxMemoryMB", "Max Memory", 4096, { min: 64, max: 524_288, unit: "MB" }),
-    sel("evictionPolicy", "Eviction", "lru", [
-      "lru:LRU", "lfu:LFU", "random:Random", "ttl:TTL-based",
-    ]),
-    num("hitRate", "Cache Hit Rate", 0.85, { min: 0, max: 0.99, step: 0.01 }),
-    num("ttlSeconds", "Default TTL", 3600, { min: 1, max: 86_400, unit: "sec" }),
-    bool("clusterEnabled", "Cluster Mode", false),
-  ], {
+  comp("redis_cache", "Redis Cache", "caching", "In-memory key-value store for hot data.", [], {
     routingBehavior: "filter",
     layer: "data_layer",
+    defaultConfig: databaseConfigToStorage(defaultDatabaseConfig("redis_cache")),
     explain: "A super-fast memory store that keeps frequently used data ready to go, so your app doesn't have to hit the slower database every time.",
     analogy: "Like keeping your most-used contacts on speed dial instead of looking them up in the phone book every time.",
     whenToUse: "When your database is getting hammered with the same reads, or you need sub-millisecond response times for things like session data or leaderboards.",

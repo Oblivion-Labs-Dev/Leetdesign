@@ -9,6 +9,8 @@ import { useSimulationStore } from "@/lib/simulator/store";
 import type { SimComponentType, SimHealth, ArchLayer } from "@/lib/simulator/types";
 import { cn } from "@/lib/utils";
 import { INSTANCE_POOL_TOOLTIP, formatRps } from "@/lib/simulator/app-server-pool";
+import { loadBalancerNodeFooter } from "@/lib/simulator/load-balancer-model";
+import { isDatabaseSimNode } from "@/lib/simulator/database-model";
 
 export interface SimNodeData extends Record<string, unknown> {
   label: string;
@@ -59,6 +61,7 @@ function SimNodeInner({ data, selected }: NodeProps) {
   const isClient = d.componentType === "client";
   const isAppServer = d.componentType === "app_server";
   const isLoadBalancer = d.componentType === "load_balancer";
+  const isDatabase = isDatabaseSimNode(d.componentType);
   const loadPercent = metrics
     ? Math.min(
         100,
@@ -67,13 +70,19 @@ function SimNodeInner({ data, selected }: NodeProps) {
           : metrics.utilizationPercent,
       )
     : 0;
-  const compactFooter = isClient || isAppServer || isLoadBalancer;
+  const compactFooter = isClient || isAppServer || isLoadBalancer || isDatabase;
   const instanceCount = metrics?.instanceCount ?? 1;
   const healthyInstanceCount = metrics?.healthyInstanceCount ?? instanceCount;
   const perInstanceRps = metrics?.perInstanceRps ?? (
     metrics && healthyInstanceCount > 0 ? metrics.currentRps / healthyInstanceCount : 0
   );
   const lbDist = metrics?.loadBalancerDistribution;
+  const lbFooter = isLoadBalancer && lbDist ? loadBalancerNodeFooter(lbDist) : null;
+  const lbIdle = Boolean(lbFooter?.idle);
+  const dbMetrics = metrics?.databaseMetrics;
+  const dbIdle = isDatabase && (!metrics || metrics.currentRps <= 0);
+  const dbFooterPrimary = dbMetrics?.footerPrimary ?? (dbIdle ? "Idle" : metrics ? `${metrics.currentRps} queries/sec` : "Idle");
+  const dbFooterSecondary = dbMetrics?.footerSecondary ?? (dbIdle ? "No active queries" : metrics ? `P95 ${metrics.p95LatencyMs} ms` : "");
 
   return (
     <div
@@ -81,7 +90,7 @@ function SimNodeInner({ data, selected }: NodeProps) {
       onDoubleClick={(e) => { e.stopPropagation(); selectNode(d.nodeId); }}
     >
       {/* Health glow */}
-      {health !== "healthy" && (
+      {health !== "healthy" && !lbIdle && (
         <div className={cn(
           "absolute -inset-2 rounded-[20px] blur-xl transition-all",
           health === "down" ? "bg-rose-600/20 animate-pulse" :
@@ -108,7 +117,7 @@ function SimNodeInner({ data, selected }: NodeProps) {
         style={{
           boxShadow: selected
             ? `0 0 0 1px var(--clay-primary), 0 8px 32px -8px rgba(0,0,0,0.15)`
-            : health === "healthy"
+            : health === "healthy" && !lbIdle
               ? `var(--clay-shadow-out), inset 0 1px 0 ${lt.glowColor}`
               : undefined,
         }}
@@ -216,17 +225,18 @@ function SimNodeInner({ data, selected }: NodeProps) {
 
         {/* Metrics footer */}
         <div className="border-t border-[var(--clay-border)] px-3 py-2">
-          {metrics && (metrics.currentRps > 0 || isClient || isAppServer || isLoadBalancer) ? (
+          {metrics && (metrics.currentRps > 0 || isClient || isAppServer || (isLoadBalancer && lbDist) || isDatabase) ? (
             <div className="space-y-1.5">
               {!compactFooter && (
                 <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--clay-surface-2)]">
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-500",
+                      lbIdle ? "bg-[var(--clay-text-subtle)]/30" :
                       loadPercent < 60 ? "bg-emerald-500" :
                       loadPercent < 85 ? "bg-amber-500" : "bg-rose-500",
                     )}
-                    style={{ width: `${loadPercent}%` }}
+                    style={{ width: lbIdle ? "0%" : `${loadPercent}%` }}
                   />
                 </div>
               )}
@@ -245,23 +255,30 @@ function SimNodeInner({ data, selected }: NodeProps) {
                     {formatRps(perInstanceRps, 1)} RPS/instance
                   </div>
                 </div>
-              ) : isLoadBalancer && lbDist ? (
+              ) : isDatabase ? (
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1 text-[9px] text-[var(--clay-text-muted)]">
-                    <span className={cn("h-[5px] w-[5px] rounded-full", hs.dot)} />
-                    <span className="font-medium">{formatRps(lbDist.incomingRps)} RPS incoming</span>
+                    <span className={cn(
+                      "h-[5px] w-[5px] rounded-full",
+                      dbIdle ? "bg-[var(--clay-text-subtle)]/40" : hs.dot,
+                    )} />
+                    <span className="font-medium">{dbFooterPrimary}</span>
                   </div>
                   <div className="text-[8px] font-mono leading-snug text-[var(--clay-text-subtle)]">
-                    {lbDist.healthyTargetPools} pool{lbDist.healthyTargetPools === 1 ? "" : "s"}
-                    {lbDist.distributions.filter((d) => d.healthy).length > 0 && (
-                      <>
-                        {" · "}
-                        {lbDist.distributions
-                          .filter((d) => d.healthy)
-                          .map((d) => `${d.percent % 1 === 0 ? d.percent.toFixed(0) : d.percent.toFixed(1)}%`)
-                          .join(" / ")}
-                      </>
-                    )}
+                    {dbFooterSecondary}
+                  </div>
+                </div>
+              ) : isLoadBalancer && lbFooter ? (
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1 text-[9px] text-[var(--clay-text-muted)]">
+                    <span className={cn(
+                      "h-[5px] w-[5px] rounded-full",
+                      lbFooter.dotMuted ? "bg-[var(--clay-text-subtle)]/40" : hs.dot,
+                    )} />
+                    <span className="font-medium">{lbFooter.primary}</span>
+                  </div>
+                  <div className="text-[8px] font-mono leading-snug text-[var(--clay-text-subtle)]">
+                    {lbFooter.secondary}
                   </div>
                 </div>
               ) : (

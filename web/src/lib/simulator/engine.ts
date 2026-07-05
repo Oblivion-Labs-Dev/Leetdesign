@@ -1,5 +1,10 @@
 /**
  * Simulation engine — traffic generation, BFS propagation, capacity/load metrics.
+ *
+ * Traffic Delivery Contract (see traffic-delivery.ts):
+ * Downstream components only receive successfully processed (delivered) output
+ * from upstream — never raw incoming, queued, or rejected traffic.
+ *
  * @see docs/SIMULATOR.md
  */
 import type { SimDesign, SimNode, SimHealth, RuntimeMetrics } from "./types";
@@ -27,7 +32,34 @@ import {
   parseDependencyConfig,
   edgeDownstreamMultiplier,
 } from "./dependency-edge-config";
+import {
+  parseLoadBalancerConfig,
+  buildLoadBalancerDistribution,
+  loadBalancerMaxRoutingRps,
+} from "./load-balancer-model";
+import {
+  isDatabaseSimNode,
+  parseDatabaseConfig,
+  deriveDatabaseCapacity,
+  deriveDatabaseBaseLatency,
+  simulateDatabaseTick,
+  computeConnectionDemand,
+  buildDatabaseMetricsSnapshot,
+  getDatabaseHealthFromTick,
+  type DatabaseTickState,
+  type DatabaseTickResult,
+} from "./database-model";
 import { validateHop, validateDesign } from "./traffic-contracts";
+import {
+  computeGenericDeliveredRps,
+  computeLoadBalancerDeliveredRps,
+  computeAppServerPropagateRps,
+  computeForwardTickVolume,
+  canPropagateTraffic,
+  canNodePropagate,
+  canAcceptClientInjection,
+  upstreamFedThisTick,
+} from "./traffic-delivery";
 import { useDesignStore, useSimulationStore } from "./store";
 
 const HISTORY_LEN = 60;
@@ -78,25 +110,16 @@ function deriveCapacity(node: SimNode): number {
       return (workers * 1000 / staticLatency) * replicas;
     }
 
-    case "sql_database": {
-      const poolSize = (c.connectionPoolSize as number) ?? 100;
-      const queryTime = (c.avgQueryTimeMs as number) ?? 5;
-      const readReplicas = (c.readReplicas as number) ?? 0;
-      const shards = (c.shards as number) ?? 1;
-      return (poolSize / queryTime) * 1000 * shards * (1 + readReplicas);
-    }
-
-    case "nosql_database": {
-      const poolSize = (c.connectionPoolSize as number) ?? 200;
-      const queryTime = (c.avgQueryTimeMs as number) ?? 3;
-      const shards = (c.shards as number) ?? 3;
-      return (poolSize / queryTime) * 1000 * shards * replicas;
-    }
-
+    case "sql_database":
+    case "nosql_database":
     case "search_index": {
-      const poolSize = (c.connectionPoolSize as number) ?? 50;
-      const queryTime = (c.avgQueryTimeMs as number) ?? 15;
-      return (poolSize / queryTime) * 1000 * replicas;
+      const dbCfg = parseDatabaseConfig(node.type, c);
+      return deriveDatabaseCapacity(dbCfg);
+    }
+
+    case "redis_cache": {
+      const dbCfg = parseDatabaseConfig(node.type, c);
+      return deriveDatabaseCapacity(dbCfg);
     }
 
     case "graph_database": {
@@ -123,7 +146,10 @@ function deriveCapacity(node: SimNode): number {
       return (1000 / latency) * 1000 * replicas;
     }
 
-    case "load_balancer":
+    case "load_balancer": {
+      const lbCfg = parseLoadBalancerConfig(c);
+      return loadBalancerMaxRoutingRps(lbCfg);
+    }
     case "firewall": {
       const maxConn = (c.maxConnections as number) ?? 10_000;
       return maxConn * replicas;
@@ -144,10 +170,8 @@ function deriveCapacity(node: SimNode): number {
       return (c.maxRps as number) ?? 1000;
     }
 
-    case "redis_cache":
     case "local_cache":
     case "distributed_cache": {
-      // Caches are extremely fast — sub-millisecond. Rarely the bottleneck.
       const nodes = (c.nodes as number) ?? replicas;
       return 100_000 * nodes;
     }
@@ -196,11 +220,12 @@ function deriveBaseLatency(node: SimNode): number {
     case "web_server":
       return (c.avgStaticLatencyMs as number) ?? 2;
     case "sql_database":
-      return (c.avgQueryTimeMs as number) ?? 5;
     case "nosql_database":
-      return (c.avgQueryTimeMs as number) ?? 3;
     case "search_index":
-      return (c.avgQueryTimeMs as number) ?? 15;
+    case "redis_cache": {
+      const dbCfg = parseDatabaseConfig(node.type, c);
+      return deriveDatabaseBaseLatency(dbCfg);
+    }
     case "graph_database":
       return (c.avgQueryTimeMs as number) ?? 10;
     case "time_series_db":
@@ -209,7 +234,10 @@ function deriveBaseLatency(node: SimNode): number {
       return (c.avgQueryTimeMs as number) ?? 2000;
     case "object_storage":
       return (c.avgLatencyMs as number) ?? 50;
-    case "load_balancer":
+    case "load_balancer": {
+      const lbCfg = parseLoadBalancerConfig(c);
+      return lbCfg.baseRoutingLatencyMs;
+    }
     case "firewall":
       return 0.5;
     case "api_gateway":
@@ -218,7 +246,6 @@ function deriveBaseLatency(node: SimNode): number {
       return 1;
     case "rate_limiter":
       return 0.5;
-    case "redis_cache":
     case "local_cache":
     case "distributed_cache":
       return 1;
@@ -249,7 +276,11 @@ function getForwardRatio(node: SimNode, _incomingRps: number): number {
       if (node.type === "cdn") return 1 - ((c.cacheHitRate as number) ?? 0.9);
       if (node.type === "web_server") return 1 - ((c.staticCacheHitRate as number) ?? 0.8);
       if (node.type === "reverse_proxy") return 1 - ((c.cacheHitRate as number) ?? 0.3);
-      // redis_cache, local_cache, distributed_cache
+      if (node.type === "redis_cache") {
+        const dbCfg = parseDatabaseConfig(node.type, node.config);
+        return 1 - dbCfg.cacheHitRate;
+      }
+      // local_cache, distributed_cache
       return 1 - ((c.hitRate as number) ?? 0.85);
     }
     case "throttle": {
@@ -287,6 +318,12 @@ function getThrottleErrors(node: SimNode, incomingRps: number): number {
     if (incomingRps > rateLimit) return incomingRps - rateLimit;
   }
 
+  if (node.type === "load_balancer") {
+    const lbCfg = parseLoadBalancerConfig(node.config);
+    const limit = loadBalancerMaxRoutingRps(lbCfg);
+    if (incomingRps > limit) return incomingRps - limit;
+  }
+
   return 0;
 }
 
@@ -313,8 +350,14 @@ interface NodeRuntime {
   archRejectedRps: number;
   archViolationMessage: string;
   archViolationSuggestion: string;
-  /** Last tick completed RPS (app server) */
+  /** Last tick completed RPS (app server) — alias for delivered on app_server */
   completedRpsLastTick: number;
+  /** Attempted arrivals at this component boundary this tick (RPS) */
+  incomingRpsLastTick: number;
+  /** Successfully processed output eligible for downstream propagation (RPS) */
+  deliveredRpsLastTick: number;
+  /** Traffic that may flow downstream this tick (RPS) — gated by upstream health + feed */
+  propagateRpsLastTick: number;
   effectiveRequestTimeMs: number;
   effectiveInstanceCount: number;
   derivedCapacityRps: number;
@@ -325,6 +368,9 @@ interface NodeRuntime {
   displayHealthyInstanceCount: number;
   /** Last seen configured replica count — detects scale-out in live sim */
   trackedInstanceCount: number;
+  /** Database cluster tick state */
+  databaseState: DatabaseTickState;
+  databaseLastTick: DatabaseTickResult | null;
 }
 
 interface SplitTarget {
@@ -372,6 +418,13 @@ function isBackendHealthy(targetId: string): boolean {
   const rt = runtimes[targetId];
   if (!rt) return true;
   return !rt.latchedDown && rt.stableHealth !== "down";
+}
+
+function getNodeSimHealth(targetId: string): SimHealth {
+  const rt = runtimes[targetId];
+  if (!rt) return "healthy";
+  if (rt.latchedDown) return "down";
+  return rt.stableHealth;
 }
 
 function computeSplitFractions(
@@ -452,6 +505,18 @@ function computeSplitFractions(
   }
 }
 
+function clearOutboundEdgeFlows(
+  sourceId: string,
+  targets: string[],
+  edges: SimDesign["edges"],
+  edgeFlows: Record<string, number>,
+): void {
+  for (const targetId of targets) {
+    const edge = edges.find((e) => e.source === sourceId && e.target === targetId);
+    if (edge) edgeFlows[edge.id] = 0;
+  }
+}
+
 function routeToTargets(
   node: SimNode,
   sourceId: string,
@@ -493,13 +558,7 @@ function routeToTargets(
     if (node.type === "app_server" && targetNode && edge) {
       const dep = parseDependencyConfig(edge, targetNode.type);
       if (dep) {
-        const rt = runtimes[node.id];
-        const useCompleted = dep.kind === "queue";
-        multiplier = edgeDownstreamMultiplier(dep, useCompleted);
-        if (useCompleted && rt) {
-          const completedFraction = rt.completedRpsLastTick / Math.max(1, rt.rpsHistory[rt.rpsHistory.length - 1] ?? 1);
-          multiplier *= Math.min(1, completedFraction);
-        }
+        multiplier = edgeDownstreamMultiplier(dep, dep.kind === "queue");
       }
     }
     const baseFraction = forwardAmount * fractions[i];
@@ -619,6 +678,9 @@ function ensureRuntime(id: string): NodeRuntime {
       archViolationMessage: "",
       archViolationSuggestion: "",
       completedRpsLastTick: 0,
+      incomingRpsLastTick: 0,
+      deliveredRpsLastTick: 0,
+      propagateRpsLastTick: 0,
       effectiveRequestTimeMs: 0,
       effectiveInstanceCount: 1,
       derivedCapacityRps: 0,
@@ -626,6 +688,22 @@ function ensureRuntime(id: string): NodeRuntime {
       healthyInstanceCount: 0,
       displayHealthyInstanceCount: 0,
       trackedInstanceCount: 0,
+      databaseState: {
+        activeConnections: 0,
+        replicationLagMs: 0,
+        replicationQueue: 0,
+        bufferHitRate: 0.88,
+        storageGrowthGbPerHour: 0,
+        primaryHealthy: true,
+        healthyReplicas: 0,
+        hotShardIndex: null,
+        shardSkew: 0,
+        evictionsPerSec: 0,
+        throttledQps: 0,
+        lockWaitMs: 0,
+        slowQueriesPerSec: 0,
+      },
+      databaseLastTick: null,
     };
   }
   return runtimes[id];
@@ -692,6 +770,11 @@ function tick(design: SimDesign, timeScale: number) {
           rt.archViolationSuggestion = hop.suggestion;
           if (edge) edgeFlows[edge.id] = 0;
         } else {
+          const targetRt = ensureRuntime(t);
+          if (!canAcceptClientInjection(targetRt.stableHealth, targetRt.latchedDown, downstreamErr)) {
+            if (edge) edgeFlows[edge.id] = 0;
+            continue;
+          }
           incoming[t] = (incoming[t] ?? 0) + perTarget;
           if (edge) edgeFlows[edge.id] = perTarget / tickRpsScale;
         }
@@ -722,8 +805,26 @@ function tick(design: SimDesign, timeScale: number) {
     if (def.routingBehavior === "none") continue;
 
     const rt = ensureRuntime(id);
-    const incomingTick = incoming[id] ?? 0;
-    const incomingPerSec = incomingTick / tickRpsScale;
+    let incomingTick = incoming[id] ?? 0;
+    const inboundSources = inEdges.get(id) ?? [];
+    const fedThisTick = upstreamFedThisTick(id, inboundSources, nodeMap, runtimes);
+
+    // Pipeline gate: no upstream feed this tick → zero accepted work (ignore stale accumulation)
+    if (inboundSources.length > 0 && !fedThisTick) {
+      incomingTick = 0;
+      incoming[id] = 0;
+    }
+
+    // Unhealthy routers reject new work at their boundary
+    if (!canNodePropagate(rt.stableHealth, rt.latchedDown) && !COMPONENT_REGISTRY[node.type].isTrafficSource) {
+      incomingTick = 0;
+      incoming[id] = 0;
+    }
+
+    let incomingPerSec = incomingTick / tickRpsScale;
+    rt.incomingRpsLastTick = incomingPerSec;
+    rt.deliveredRpsLastTick = 0;
+    rt.propagateRpsLastTick = 0;
     const baseLatency = deriveBaseLatency(node);
 
     let capacity = 0;
@@ -781,6 +882,12 @@ function tick(design: SimDesign, timeScale: number) {
       });
 
       rt.completedRpsLastTick = sim.completedRps;
+      rt.deliveredRpsLastTick = sim.completedRps;
+      rt.propagateRpsLastTick = computeAppServerPropagateRps(
+        incomingPerSec,
+        sim.completedRps,
+        fedThisTick,
+      );
       rt.activeRequestsCount = sim.nextState.activeRequests;
       rt.queueDepth = sim.nextState.queueDepth;
       rt.derivedCapacityRps = sim.maxCompletionRps;
@@ -791,6 +898,28 @@ function tick(design: SimDesign, timeScale: number) {
       errorRate = Math.min(1, sim.errorRate + (incomingPerSec > 0 ? throttleErrors / incomingPerSec : 0));
       overloadError = sim.errorRate;
       rt.activeConnections = sim.activeRequests;
+    } else if (isDatabaseSimNode(node.type)) {
+      const dbCfg = parseDatabaseConfig(node.type, node.config);
+      const connDemand = computeConnectionDemand(design, id);
+      const dbTick = simulateDatabaseTick({
+        incomingQps: incomingPerSec,
+        dtSec: tickRpsScale,
+        cfg: dbCfg,
+        state: rt.databaseState,
+        demandedConnections: connDemand.demandedConnections,
+      });
+      rt.databaseState = dbTick.nextState;
+      rt.databaseLastTick = dbTick;
+      capacity = dbTick.maxCapacityQps;
+      load = dbTick.load;
+      actualLatency = dbTick.avgLatencyMs * (0.97 + Math.random() * 0.06);
+      throttleErrors = getThrottleErrors(node, incomingPerSec);
+      errorRate = Math.min(1, dbTick.errorRate + (incomingPerSec > 0 ? throttleErrors / incomingPerSec : 0));
+      overloadError = dbTick.errorRate;
+      rt.activeConnections = dbTick.nextState.activeConnections;
+      rt.deliveredRpsLastTick = dbTick.completedQps;
+      rt.propagateRpsLastTick = fedThisTick ? dbTick.completedQps : 0;
+      rt.queueDepth = load > 1 ? rt.queueDepth + (incomingTick - capacity * tickRpsScale) * 0.1 : Math.max(0, rt.queueDepth * 0.92);
     } else {
       const loadResult = computeNodeLoad(node, incomingPerSec, rt, baseLatency);
       capacity = loadResult.capacity;
@@ -812,10 +941,52 @@ function tick(design: SimDesign, timeScale: number) {
       const throttleErrorRate = incomingPerSec > 0 ? throttleErrors / incomingPerSec : 0;
       errorRate = Math.min(overloadError + throttleErrorRate, 1);
 
+      if (node.type === "load_balancer" && incomingPerSec > 0) {
+        const lbTargets = outEdges.get(id) ?? [];
+        const healthyLbTargets = lbTargets.filter((t) => isBackendHealthy(t));
+        if (healthyLbTargets.length === 0) {
+          errorRate = 1;
+        }
+      }
+
       if (load > 1) {
         rt.queueDepth += (incomingTick - capacity * tickRpsScale) * 0.15;
       } else {
         rt.queueDepth = Math.max(0, rt.queueDepth * 0.92 - capacity * 0.02);
+      }
+
+      if (node.type === "load_balancer") {
+        const lbCfg = parseLoadBalancerConfig(node.config);
+        const lbTargets = outEdges.get(id) ?? [];
+        const healthyCount = lbTargets.filter((t) => isBackendHealthy(t)).length;
+        rt.deliveredRpsLastTick = computeLoadBalancerDeliveredRps(
+          incomingPerSec,
+          lbCfg,
+          healthyCount,
+          errorRate,
+        );
+      } else if (COMPONENT_REGISTRY[node.type].routingBehavior === "throttle") {
+        const limit = (node.config.maxRps as number) ?? 1000;
+        rt.deliveredRpsLastTick = Math.min(incomingPerSec, limit) * Math.max(0, 1 - errorRate);
+      } else {
+        rt.deliveredRpsLastTick = computeGenericDeliveredRps(incomingPerSec, capacity, errorRate);
+      }
+    }
+
+    // Finalize propagate: unhealthy nodes never feed downstream
+    if (!canNodePropagate(rt.stableHealth, rt.latchedDown)) {
+      rt.propagateRpsLastTick = 0;
+    } else if (node.type !== "app_server" && !isDatabaseSimNode(node.type)) {
+      rt.propagateRpsLastTick = rt.deliveredRpsLastTick;
+    }
+
+    // Sync client→first-hop edge flow to what the router actually accepted
+    if (node.type === "load_balancer" || node.type === "api_gateway" || node.type === "web_server") {
+      for (const srcId of inboundSources) {
+        const srcNode = nodeMap.get(srcId);
+        if (!srcNode || !COMPONENT_REGISTRY[srcNode.type].isTrafficSource) continue;
+        const edge = edges.find((e) => e.source === srcId && e.target === id);
+        if (edge) edgeFlows[edge.id] = incomingPerSec;
       }
     }
 
@@ -844,6 +1015,9 @@ function tick(design: SimDesign, timeScale: number) {
 
     // DOWN node: absorb traffic; drain in-flight work so components can recover
     if (rt.latchedDown) {
+      rt.deliveredRpsLastTick = 0;
+      rt.propagateRpsLastTick = 0;
+      clearOutboundEdgeFlows(id, outEdges.get(id) ?? [], edges, edgeFlows);
       if (node.type === "app_server") {
         rt.activeRequestsCount = Math.max(0, rt.activeRequestsCount * 0.55);
         rt.queueDepth = Math.max(0, rt.queueDepth * 0.55);
@@ -871,8 +1045,6 @@ function tick(design: SimDesign, timeScale: number) {
       continue;
     }
 
-    const forwardRatio = getForwardRatio(node, incomingPerSec);
-
     rt.totalReqs += incomingTick;
     rt.latencyVals.push(actualLatency);
     if (rt.latencyVals.length > 100) rt.latencyVals = rt.latencyVals.slice(-100);
@@ -880,32 +1052,57 @@ function tick(design: SimDesign, timeScale: number) {
     rt.smoothedError = rt.smoothedError * (1 - ERROR_EMA) + errorRate * ERROR_EMA;
     rt.errors += throttleErrors * tickRpsScale;
 
-    rt.rpsHistory = push(rt.rpsHistory, incomingPerSec);
+    const historyRps = node.type === "app_server"
+      ? incomingPerSec
+      : rt.deliveredRpsLastTick;
+    rt.rpsHistory = push(rt.rpsHistory, historyRps);
     rt.latencyHistory = push(rt.latencyHistory, actualLatency);
     rt.errorHistory = push(rt.errorHistory, errorRate);
 
     const targets = outEdges.get(id) ?? [];
-    if (targets.length > 0 && forwardRatio > 0) {
-      let forwardAmount = incomingTick * forwardRatio * (1 - overloadError);
-      if (node.type === "app_server") {
-        forwardAmount = Math.min(
-          forwardAmount,
-          rt.completedRpsLastTick * tickRpsScale * forwardRatio,
-        );
+    const forwardRatio = getForwardRatio(node, incomingPerSec);
+
+    if (targets.length > 0 && canPropagateTraffic(rt.propagateRpsLastTick)) {
+      let forwardAmount = computeForwardTickVolume(
+        rt.propagateRpsLastTick,
+        tickRpsScale,
+        forwardRatio,
+      );
+
+      if (node.type === "load_balancer") {
+        const lbCfg = parseLoadBalancerConfig(node.config);
+        const healthyTargets = targets.filter((t) => isBackendHealthy(t));
+        if (healthyTargets.length === 0) {
+          forwardAmount = 0;
+        } else {
+          const maxRoute = loadBalancerMaxRoutingRps(lbCfg);
+          forwardAmount = Math.min(forwardAmount, maxRoute * tickRpsScale);
+        }
       }
-      routeToTargets(node, id, targets, forwardAmount, edges, incoming, queue, edgeFlows, tickRpsScale, nodeMap, archRejected);
+
+      if (forwardAmount > 0) {
+        routeToTargets(node, id, targets, forwardAmount, edges, incoming, queue, edgeFlows, tickRpsScale, nodeMap, archRejected);
+      } else {
+        clearOutboundEdgeFlows(id, targets, edges, edgeFlows);
+      }
+    } else {
+      clearOutboundEdgeFlows(id, targets, edges, edgeFlows);
     }
   }
 
-  // Phase 2b: starve unreachable nodes
+  // Phase 2b: starve unreachable nodes — no incoming, no delivery, no downstream flow
   for (const node of nodes) {
     if (COMPONENT_REGISTRY[node.type].isTrafficSource) continue;
     if (visited.has(node.id)) continue;
     const rt = ensureRuntime(node.id);
+    rt.incomingRpsLastTick = 0;
+    rt.deliveredRpsLastTick = 0;
+    rt.propagateRpsLastTick = 0;
     rt.rpsHistory = push(rt.rpsHistory, 0);
     rt.latencyHistory = push(rt.latencyHistory, 0);
     rt.errorHistory = push(rt.errorHistory, 0);
     rt.queueDepth = Math.max(0, rt.queueDepth * 0.85 - 1);
+    clearOutboundEdgeFlows(node.id, outEdges.get(node.id) ?? [], edges, edgeFlows);
   }
 
   // Phase 3: compute metrics and update store (throttled for perf)
@@ -968,6 +1165,18 @@ function tick(design: SimDesign, timeScale: number) {
         rawHealth = "degraded";
       } else if (node.type === "app_server") {
         rawHealth = healthFromPoolUtilization(poolUtilForHealth, rt.smoothedError, false);
+      } else if (node.type === "load_balancer") {
+        if (lastRps <= 0) {
+          rawHealth = "healthy";
+        } else {
+          const lbTargets = outEdges.get(node.id) ?? [];
+          const healthyCount = lbTargets.filter((t) => isBackendHealthy(t)).length;
+          rawHealth = healthyCount === 0
+            ? "failing"
+            : healthFromLoad(rt.smoothedLoad, rt.smoothedError);
+        }
+      } else if (isDatabaseSimNode(node.type) && rt.databaseLastTick) {
+        rawHealth = getDatabaseHealthFromTick(rt.databaseLastTick);
       } else {
         rawHealth = healthFromLoad(rt.smoothedLoad, rt.smoothedError);
       }
@@ -1058,6 +1267,7 @@ function tick(design: SimDesign, timeScale: number) {
 
     const metrics: RuntimeMetrics = {
       currentRps: Math.round(lastRps),
+      incomingRps: Math.round(rt.incomingRpsLastTick),
       totalRequests: Math.round(rt.totalReqs),
       avgLatencyMs: Math.round(lastLatency * 10) / 10,
       p95LatencyMs: Math.round(percentile(sorted, 0.95) * 10) / 10,
@@ -1189,15 +1399,24 @@ function tick(design: SimDesign, timeScale: number) {
     if (!base) continue;
 
     const incomingRps = base.currentRps;
-    const allTargets = outEdges.get(node.id) ?? [];
-    const splitTargets: SplitTarget[] = [];
+    const allTargetIds = outEdges.get(node.id) ?? [];
+    const algorithm = (node.config.algorithm as string) ?? "round_robin";
+    const lbCfg = parseLoadBalancerConfig(node.config);
 
-    for (const targetId of allTargets) {
-      const edge = edges.find((e) => e.source === node.id && e.target === targetId);
+    const allTargets = allTargetIds.map((targetId) => ({
+      id: targetId,
+      label: nodeMap.get(targetId)?.label ?? targetId,
+      health: getNodeSimHealth(targetId),
+      healthy: isBackendHealthy(targetId),
+    }));
+
+    const splitTargets: SplitTarget[] = [];
+    for (const t of allTargets) {
+      if (!t.healthy) continue;
+      const edge = edges.find((e) => e.source === node.id && e.target === t.id);
       if (!edge) continue;
-      if (!isBackendHealthy(targetId)) continue;
       splitTargets.push({
-        id: targetId,
+        id: t.id,
         edgeId: edge.id,
         weight: (edge.config.weight as number) ?? 1,
       });
@@ -1207,33 +1426,46 @@ function tick(design: SimDesign, timeScale: number) {
       ? computeSplitFractions(node, splitTargets)
       : [];
 
-    const distributions = splitTargets.map((t, i) => ({
-      targetId: t.id,
+    const healthyTargets = splitTargets.map((t, i) => ({
+      id: t.id,
       label: nodeMap.get(t.id)?.label ?? t.id,
-      rps: Math.round(incomingRps * fractions[i]),
-      percent: Math.round(fractions[i] * 1000) / 10,
-      healthy: true,
+      health: getNodeSimHealth(t.id),
+      fraction: fractions[i] ?? 0,
     }));
 
-    for (const targetId of allTargets) {
-      if (splitTargets.some((t) => t.id === targetId)) continue;
-      distributions.push({
-        targetId,
-        label: nodeMap.get(targetId)?.label ?? targetId,
-        rps: 0,
-        percent: 0,
-        healthy: false,
-      });
-    }
+    const snapshot = buildLoadBalancerDistribution({
+      incomingRps,
+      cfg: lbCfg,
+      algorithm,
+      allTargets,
+      healthyTargets,
+    });
 
     batchMetrics[node.id] = {
       ...base,
-      loadBalancerDistribution: {
-        incomingRps,
-        healthyTargetPools: splitTargets.length,
-        algorithm: (node.config.algorithm as string) ?? "round_robin",
-        distributions,
-      },
+      loadBalancerDistribution: snapshot,
+    };
+  }
+
+  // Database cluster metrics snapshot
+  for (const node of nodes) {
+    if (!isDatabaseSimNode(node.type)) continue;
+    const base = batchMetrics[node.id];
+    if (!base) continue;
+    const rt = ensureRuntime(node.id);
+    const dbCfg = parseDatabaseConfig(node.type, node.config);
+    const tick = rt.databaseLastTick ?? simulateDatabaseTick({
+      incomingQps: base.currentRps,
+      dtSec: 0.1,
+      cfg: dbCfg,
+      state: rt.databaseState,
+      demandedConnections: computeConnectionDemand(design, node.id).demandedConnections,
+    });
+    batchMetrics[node.id] = {
+      ...base,
+      cpuPercent: tick.cpuUtilization,
+      memoryPercent: tick.memoryUtilization,
+      databaseMetrics: buildDatabaseMetricsSnapshot(dbCfg, tick, rt.incomingRpsLastTick),
     };
   }
 
